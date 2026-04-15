@@ -2,6 +2,7 @@
 Router de Órdenes de Trabajo
 """
 from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.base import get_db
@@ -12,6 +13,10 @@ from app.models.producto_interno import ProductoInterno
 router = APIRouter(prefix="/api/v1/ordenes-trabajo", tags=["Órdenes de Trabajo"])
 
 CARGOS_PERMITIDOS = ['costura', 'tapiceria', 'esqueleteria']
+
+
+def parse_fecha(fecha_str: str):
+    return datetime.strptime(str(fecha_str), '%Y-%m-%d').date()
 
 
 @router.get("")
@@ -29,14 +34,13 @@ async def listar_ordenes_trabajo(
         if estado:
             query = query.where(OrdenTrabajo.estado == estado)
         if fecha_desde:
-            query = query.where(OrdenTrabajo.fecha >= fecha_desde)
+            query = query.where(OrdenTrabajo.fecha >= parse_fecha(fecha_desde))
         if fecha_hasta:
-            query = query.where(OrdenTrabajo.fecha <= fecha_hasta)
+            query = query.where(OrdenTrabajo.fecha <= parse_fecha(fecha_hasta))
 
         result = await db.execute(query)
         ots = result.scalars().all()
 
-        # Obtener datos de trabajadores y productos
         response = []
         for ot in ots:
             trabajador = await db.get(Trabajador, ot.trabajador_id)
@@ -73,47 +77,41 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
         creadas = []
 
         for ot_data in ordenes:
-            # Obtener trabajador
             trabajador = await db.get(Trabajador, ot_data["trabajador_id"])
             if not trabajador:
                 raise HTTPException(status_code=404, detail=f"Trabajador {ot_data['trabajador_id']} no encontrado")
             if trabajador.cargo not in CARGOS_PERMITIDOS:
                 raise HTTPException(status_code=400, detail=f"El trabajador {trabajador.nombre_completo} no tiene cargo permitido")
 
-            # Obtener producto
             producto = await db.get(ProductoInterno, ot_data["producto_interno_id"])
             if not producto:
                 raise HTTPException(status_code=404, detail=f"Producto {ot_data['producto_interno_id']} no encontrado")
 
             numero_ot = ot_data["numero_ot"]
-            fecha = ot_data["fecha"]
+            fecha = parse_fecha(ot_data["fecha"])
             cargo = trabajador.cargo
 
-            # Buscar OTs existentes con el mismo número
+            # Validar duplicados
             result_existentes = await db.execute(
                 select(OrdenTrabajo).where(OrdenTrabajo.numero_ot == numero_ot)
             )
             existentes = result_existentes.scalars().all()
 
             for existente in existentes:
-                # Regla 1: mismo número OT + mismo cargo → NO permitido
                 if existente.cargo_trabajador == cargo:
                     if cargo == 'esqueleteria':
-                        # Esqueletería: permitido solo si es el mismo día
-                        if str(existente.fecha) != str(fecha):
+                        if existente.fecha != fecha:
                             raise HTTPException(
                                 status_code=400,
                                 detail=f"OT {numero_ot} ya existe en esqueletería para una fecha diferente ({existente.fecha}). Solo se permite el mismo día."
                             )
-                        # Mismo día está bien → continúa
                     else:
-                        # Costura o tapicería: nunca se puede repetir el mismo cargo
                         raise HTTPException(
                             status_code=400,
                             detail=f"OT {numero_ot} ya existe con cargo '{cargo}'. El mismo número de OT no puede repetirse en el mismo cargo."
                         )
 
-            # Determinar precio y descripción según cargo
+            # Determinar precio y descripción
             if cargo == 'costura':
                 precio = producto.precio_costura
                 descripcion = ot_data.get("descripcion") or producto.descripcion
@@ -178,7 +176,6 @@ async def eliminar_ot(id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/trabajadores-produccion")
 async def listar_trabajadores_produccion(db: AsyncSession = Depends(get_db)):
-    """Lista solo trabajadores con cargo de producción (costura, tapiceria, esqueleteria)."""
     try:
         result = await db.execute(
             select(Trabajador).where(
@@ -202,9 +199,9 @@ async def listar_trabajadores_produccion(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
+
 @router.get("/productos-produccion")
 async def listar_productos_produccion(db: AsyncSession = Depends(get_db)):
-    """Lista productos internos agrupados por sku_padre (uno por modelo)."""
     try:
         result = await db.execute(
             select(ProductoInterno)
@@ -213,7 +210,6 @@ async def listar_productos_produccion(db: AsyncSession = Depends(get_db)):
         )
         productos = result.scalars().all()
 
-        # Agrupar por sku_padre — tomar el primero de cada grupo
         vistos = set()
         agrupados = []
         for p in productos:

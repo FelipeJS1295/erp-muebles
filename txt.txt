@@ -1,1 +1,3 @@
+cd /opt/erp-muebles
+
 /opt/erp-muebles/deploy.sh
