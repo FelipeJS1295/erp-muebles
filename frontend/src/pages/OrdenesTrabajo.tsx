@@ -73,6 +73,7 @@ const emptyLinea = (): LineaOT => ({
 function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () => void }) {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
+  const [trabajadorId, setTrabajadorId] = useState('')
   const [lineas, setLineas] = useState<LineaOT[]>([emptyLinea()])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -82,21 +83,18 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
     api.get('/ordenes-trabajo/productos-produccion').then(r => setProductos(r.data.productos || []))
   }, [])
 
-  const getTrabajador = (id: string) => trabajadores.find(t => t.id === Number(id))
-  const getProducto = (id: string) => productos.find(p => p.id === Number(id))
+  const trabajador = trabajadores.find(t => t.id === Number(trabajadorId))
 
-  const getDescripcion = (linea: LineaOT) => {
-    const trabajador = getTrabajador(linea.trabajador_id)
-    const producto = getProducto(linea.producto_interno_id)
-    if (!trabajador || !producto) return ''
+  const getDescripcion = (productoId: string) => {
+    const producto = productos.find(p => p.id === Number(productoId))
+    if (!producto || !trabajador) return ''
     if (trabajador.cargo === 'esqueleteria') return producto.descripcion_esqueleto || producto.descripcion
     return producto.descripcion
   }
 
-  const getPrecio = (linea: LineaOT) => {
-    const trabajador = getTrabajador(linea.trabajador_id)
-    const producto = getProducto(linea.producto_interno_id)
-    if (!trabajador || !producto) return null
+  const getPrecio = (productoId: string) => {
+    const producto = productos.find(p => p.id === Number(productoId))
+    if (!producto || !trabajador) return null
     if (trabajador.cargo === 'costura') return producto.precio_costura
     if (trabajador.cargo === 'tapiceria') return producto.precio_tapiceria
     if (trabajador.cargo === 'esqueleteria') return producto.precio_esqueleteria
@@ -107,19 +105,21 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
     setLineas(prev => prev.map(l => {
       if (l.id !== id) return l
       const updated = { ...l, [key]: value }
-      // Auto-llenar descripción al seleccionar trabajador o producto
-      if (key === 'trabajador_id' || key === 'producto_interno_id') {
-        const trabajador = getTrabajador(key === 'trabajador_id' ? value : l.trabajador_id)
-        const producto = getProducto(key === 'producto_interno_id' ? value : l.producto_interno_id)
-        if (trabajador && producto) {
-          updated.descripcion = trabajador.cargo === 'esqueleteria'
-            ? (producto.descripcion_esqueleto || producto.descripcion)
-            : producto.descripcion
-        }
+      if (key === 'producto_interno_id' && value) {
+        updated.descripcion = getDescripcion(value)
       }
       return updated
     }))
   }
+
+  // Re-calcular descripciones cuando cambia el trabajador
+  useEffect(() => {
+    if (!trabajadorId) return
+    setLineas(prev => prev.map(l => ({
+      ...l,
+      descripcion: l.producto_interno_id ? getDescripcion(l.producto_interno_id) : l.descripcion
+    })))
+  }, [trabajadorId])
 
   const agregarLinea = () => setLineas(prev => [...prev, emptyLinea()])
   const eliminarLinea = (id: string) => {
@@ -129,9 +129,10 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
 
   const guardar = async () => {
     setError('')
+    if (!trabajadorId) { setError('Debes seleccionar un trabajador'); return }
     for (const l of lineas) {
-      if (!l.numero_ot || !l.fecha || !l.trabajador_id || !l.producto_interno_id) {
-        setError('Todos los campos son obligatorios en cada línea')
+      if (!l.numero_ot || !l.fecha || !l.producto_interno_id) {
+        setError('N° OT, fecha y producto son obligatorios en cada línea')
         return
       }
     }
@@ -141,18 +142,15 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
         ordenes: lineas.map(l => ({
           numero_ot: l.numero_ot,
           fecha: l.fecha,
-          trabajador_id: Number(l.trabajador_id),
+          trabajador_id: Number(trabajadorId),
           producto_interno_id: Number(l.producto_interno_id),
           descripcion: l.descripcion,
         }))
       })
-      onSave()
-      onClose()
+      onSave(); onClose()
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Error al guardar')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const IS: React.CSSProperties = {
@@ -161,7 +159,8 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
     color: 'var(--text-1)', outline: 'none', width: '100%',
   }
 
-  const totalPrecio = lineas.reduce((sum, l) => sum + (getPrecio(l) || 0), 0)
+  const totalPrecio = lineas.reduce((sum, l) => sum + (getPrecio(l.producto_interno_id) || 0), 0)
+  const cargoCol = trabajador ? cargoColor[trabajador.cargo] : null
 
   return (
     <div onClick={onClose} style={{
@@ -171,21 +170,22 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: 'var(--bg-2)', borderRadius: '12px',
-        border: '0.5px solid var(--border)', width: '100%', maxWidth: '900px',
+        border: '0.5px solid var(--border)', width: '100%', maxWidth: '960px',
         animation: 'fadeIn 0.15s ease',
       }}>
         {/* Header */}
         <div style={{
-          padding: '16px 20px', borderBottom: '0.5px solid var(--border)',
+          padding: '16px 24px', borderBottom: '0.5px solid var(--border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          position: 'sticky', top: 0, background: 'var(--bg-2)', zIndex: 1,
+          position: 'sticky', top: 0, background: 'var(--bg-2)', zIndex: 1, borderRadius: '12px 12px 0 0',
         }}>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>
               Ingreso de Órdenes de Trabajo
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>
-              {lineas.length} OT{lineas.length > 1 ? 's' : ''} · Total: ${totalPrecio.toLocaleString('es-CL')}
+              {lineas.length} OT{lineas.length > 1 ? 's' : ''}
+              {totalPrecio > 0 && ` · Total: $${totalPrecio.toLocaleString('es-CL')}`}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -195,142 +195,162 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
           }}>✕</button>
         </div>
 
-        <div style={{ padding: '20px' }}>
-          {/* Tabla de ingreso */}
-          <div style={{ border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
+        <div style={{ padding: '24px' }}>
+
+          {/* Selección trabajador */}
+          <div style={{
+            background: 'var(--bg)', border: '0.5px solid var(--border)',
+            borderRadius: '10px', padding: '16px', marginBottom: '20px',
+          }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+              Trabajador
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'center' }}>
+              <select value={trabajadorId} onChange={e => setTrabajadorId(e.target.value)} style={{ ...IS, fontSize: '14px', padding: '10px 12px' }}>
+                <option value="">Seleccionar trabajador...</option>
+                {trabajadores.map(t => (
+                  <option key={t.id} value={t.id}>{t.nombre_completo} — {t.cargo}</option>
+                ))}
+              </select>
+              {trabajador && cargoCol && (
+                <span style={{
+                  padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
+                  background: cargoCol.bg, color: cargoCol.color, whiteSpace: 'nowrap',
+                }}>
+                  {trabajador.cargo.charAt(0).toUpperCase() + trabajador.cargo.slice(1)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Tabla OTs */}
+          <div style={{ border: '0.5px solid var(--border)', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--bg)' }}>
-                  {['N° OT', 'Fecha', 'Trabajador', 'Cargo', 'Producto', 'Descripción', 'Precio', ''].map(h => (
-                    <th key={h} style={{
-                      padding: '9px 12px', fontSize: '11px', fontWeight: 500,
-                      color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)',
-                      textAlign: 'left', whiteSpace: 'nowrap',
-                    }}>{h}</th>
-                  ))}
+                  <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Producto {trabajador?.cargo === 'esqueleteria' ? '(SKU Padre)' : ''}
+                  </th>
+                  <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', width: '130px' }}>
+                    N° Orden
+                  </th>
+                  <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', width: '140px' }}>
+                    Fecha
+                  </th>
+                  <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Descripción
+                  </th>
+                  <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em', width: '110px' }}>
+                    Precio
+                  </th>
+                  <th style={{ width: '40px', borderBottom: '0.5px solid var(--border)' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {lineas.map((linea, idx) => {
-                  const trabajador = getTrabajador(linea.trabajador_id)
-                  const precio = getPrecio(linea)
-                  const col = trabajador ? cargoColor[trabajador.cargo] : null
-
+                  const precio = getPrecio(linea.producto_interno_id)
                   return (
-                    <tr key={linea.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                      <td style={{ padding: '8px 12px', width: '100px' }}>
+                    <tr key={linea.id} style={{
+                      borderBottom: idx < lineas.length - 1 ? '0.5px solid var(--border)' : 'none',
+                      background: idx % 2 === 0 ? 'transparent' : 'var(--bg)',
+                    }}>
+                      <td style={{ padding: '10px 14px' }}>
+                        <select value={linea.producto_interno_id}
+                          onChange={e => updateLinea(linea.id, 'producto_interno_id', e.target.value)}
+                          style={IS} disabled={!trabajadorId}>
+                          <option value="">Seleccionar producto...</option>
+                          {productos.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.sku_padre} — {trabajador?.cargo === 'esqueleteria'
+                                ? (p.descripcion_esqueleto || p.descripcion)
+                                : p.descripcion}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
                         <input value={linea.numero_ot}
                           onChange={e => updateLinea(linea.id, 'numero_ot', e.target.value)}
                           style={{ ...IS, fontFamily: 'monospace', fontSize: '12px' }}
-                          placeholder="OT-001" />
+                          placeholder="OT-001" disabled={!trabajadorId} />
                       </td>
-                      <td style={{ padding: '8px 12px', width: '130px' }}>
+                      <td style={{ padding: '10px 14px' }}>
                         <input type="date" value={linea.fecha}
                           onChange={e => updateLinea(linea.id, 'fecha', e.target.value)}
-                          style={IS} />
+                          style={IS} disabled={!trabajadorId} />
                       </td>
-                      <td style={{ padding: '8px 12px', minWidth: '160px' }}>
-                        <select value={linea.trabajador_id}
-                          onChange={e => updateLinea(linea.id, 'trabajador_id', e.target.value)}
-                          style={IS}>
-                          <option value="">Seleccionar...</option>
-                          {trabajadores.map(t => (
-                            <option key={t.id} value={t.id}>{t.nombre_completo}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: '8px 12px', width: '100px' }}>
-                        {trabajador && col ? (
-                          <span style={{
-                            padding: '2px 8px', borderRadius: '10px', fontSize: '11px',
-                            fontWeight: 500, background: col.bg, color: col.color,
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {trabajador.cargo}
-                          </span>
-                        ) : <span style={{ color: 'var(--text-4)', fontSize: '12px' }}>—</span>}
-                      </td>
-                      <td style={{ padding: '8px 12px', minWidth: '160px' }}>
-                        <select value={linea.producto_interno_id}
-                          onChange={e => updateLinea(linea.id, 'producto_interno_id', e.target.value)}
-                          style={IS}>
-                          <option value="">Seleccionar...</option>
-                          {productos.map(p => (
-                            <option key={p.id} value={p.id}>{p.sku_padre} - {p.descripcion}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: '8px 12px', minWidth: '180px' }}>
+                      <td style={{ padding: '10px 14px' }}>
                         <input value={linea.descripcion}
                           onChange={e => updateLinea(linea.id, 'descripcion', e.target.value)}
-                          style={{ ...IS, fontSize: '12px' }}
-                          placeholder="Descripción auto-llenada" />
+                          style={{ ...IS, fontSize: '12px', color: 'var(--text-2)' }}
+                          placeholder={trabajadorId ? 'Auto-llenado al seleccionar producto' : '—'} />
                       </td>
-                      <td style={{ padding: '8px 12px', width: '100px', textAlign: 'right' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                         {precio !== null ? (
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--success)' }}>
                             ${precio.toLocaleString('es-CL')}
                           </span>
                         ) : <span style={{ color: 'var(--text-4)', fontSize: '12px' }}>—</span>}
                       </td>
-                      <td style={{ padding: '8px 12px', width: '36px' }}>
+                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>
                         {lineas.length > 1 && (
                           <button onClick={() => eliminarLinea(linea.id)} style={{
                             background: 'none', border: 'none', color: 'var(--danger)',
-                            cursor: 'pointer', fontSize: '16px', padding: '0',
-                          }}>✕</button>
+                            cursor: 'pointer', fontSize: '16px', padding: '0', lineHeight: 1,
+                          }}>🗑</button>
                         )}
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
+              {totalPrecio > 0 && (
+                <tfoot>
+                  <tr style={{ background: 'var(--bg)', borderTop: '0.5px solid var(--border)' }}>
+                    <td colSpan={4} style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-3)', fontWeight: 500 }}>
+                      Total {lineas.length} OT{lineas.length > 1 ? 's' : ''}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: '15px', fontWeight: 700, color: 'var(--success)' }}>
+                      ${totalPrecio.toLocaleString('es-CL')}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
           {/* Agregar línea */}
-          <button onClick={agregarLinea} style={{
-            padding: '7px 14px', borderRadius: '7px',
+          <button onClick={agregarLinea} disabled={!trabajadorId} style={{
+            padding: '8px 16px', borderRadius: '7px',
             border: '0.5px dashed var(--border)', background: 'transparent',
-            color: 'var(--text-3)', fontSize: '12px', cursor: 'pointer',
-            width: '100%', marginBottom: '16px',
+            color: trabajadorId ? 'var(--text-2)' : 'var(--text-4)',
+            fontSize: '12px', cursor: trabajadorId ? 'pointer' : 'not-allowed',
+            width: '100%', marginBottom: '20px',
           }}>
             + Agregar otra OT
           </button>
 
-          {/* Resumen */}
-          {lineas.some(l => getPrecio(l) !== null) && (
-            <div style={{
-              background: 'var(--bg)', border: '0.5px solid var(--border)',
-              borderRadius: '8px', padding: '12px 16px', marginBottom: '16px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-3)' }}>
-                {lineas.length} OT{lineas.length > 1 ? 's' : ''} ingresadas
-              </div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--success)' }}>
-                Total: ${totalPrecio.toLocaleString('es-CL')}
-              </div>
-            </div>
-          )}
-
           {error && (
-            <div style={{ padding: '10px', background: 'var(--danger-bg)', borderRadius: '7px', color: 'var(--danger)', fontSize: '13px', marginBottom: '12px' }}>
+            <div style={{ padding: '10px', background: 'var(--danger-bg)', borderRadius: '7px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
               {error}
             </div>
           )}
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button onClick={onClose} style={{
-              padding: '10px 16px', borderRadius: '8px',
+              padding: '10px 20px', borderRadius: '8px',
               border: '0.5px solid var(--border)', background: 'var(--bg)',
               color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer',
             }}>Cancelar</button>
-            <button onClick={guardar} disabled={saving} style={{
-              padding: '10px 20px', borderRadius: '8px', border: 'none',
+            <button onClick={guardar} disabled={saving || !trabajadorId} style={{
+              padding: '10px 24px', borderRadius: '8px', border: 'none',
               background: 'var(--accent)', color: 'var(--accent-fg)',
-              fontSize: '13px', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1,
-            }}>{saving ? 'Guardando...' : `Guardar ${lineas.length} OT${lineas.length > 1 ? 's' : ''}`}</button>
+              fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+              opacity: (saving || !trabajadorId) ? 0.6 : 1,
+            }}>
+              {saving ? 'Guardando...' : `Guardar ${lineas.length} OT${lineas.length > 1 ? 's' : ''}`}
+            </button>
           </div>
         </div>
       </div>
