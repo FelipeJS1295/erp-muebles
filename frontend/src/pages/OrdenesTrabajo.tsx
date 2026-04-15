@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { api } from '../api/client'
 
+
 interface Trabajador {
   id: number
   rut: string
@@ -927,6 +928,10 @@ function ReparacionModal({ onClose, onSave }: { onClose: () => void, onSave: () 
 // =============================================================================
 // Página Principal
 // =============================================================================
+
+const usuario = JSON.parse(localStorage.getItem('usuario') || '{}')
+const soloLectura = usuario.rol === 'view'
+
 export default function OrdenesTrabajo() {
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
   const [loading, setLoading] = useState(true)
@@ -1046,28 +1051,32 @@ export default function OrdenesTrabajo() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-          <button onClick={() => setMostrarResumen(true)} style={{
-            padding: '8px 14px', borderRadius: '8px',
-            border: '0.5px solid var(--border)', background: 'var(--bg)',
-            color: 'var(--text-2)', fontSize: '12px', fontWeight: 500,
-            cursor: 'pointer', whiteSpace: 'nowrap',
+            {!soloLectura && (
+                <button onClick={() => setMostrarReparacion(true)} style={{
+                padding: '8px 14px', borderRadius: '8px', border: '0.5px solid #e85d04',
+                background: 'transparent', color: '#e85d04',
+                fontSize: '12px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>
+                🔧 Reparación
+                </button>
+            )}
+            {!soloLectura && (
+                <button onClick={() => setMostrarIngreso(true)} style={{
+                ...IS, display: 'flex', alignItems: 'center', gap: '6px',
+                background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
+                fontWeight: 500, whiteSpace: 'nowrap',
+                }}>
+                + Ingresar OT
+                </button>
+            )}
+            <button onClick={() => setMostrarResumen(true)} style={{
+                padding: '8px 14px', borderRadius: '8px',
+                border: '0.5px solid var(--border)', background: 'var(--bg)',
+                color: 'var(--text-2)', fontSize: '12px', fontWeight: 500,
+                cursor: 'pointer', whiteSpace: 'nowrap',
             }}>
-            🖨️ Resumen
-          </button>  
-          <button onClick={() => setMostrarReparacion(true)} style={{
-            padding: '8px 14px', borderRadius: '8px', border: '0.5px solid #e85d04',
-            background: 'transparent', color: '#e85d04',
-            fontSize: '12px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
-          }}>
-            🔧 Reparación
-          </button>
-          <button onClick={() => setMostrarIngreso(true)} style={{
-            ...IS, display: 'flex', alignItems: 'center', gap: '6px',
-            background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
-            fontWeight: 500, whiteSpace: 'nowrap',
-          }}>
-            + Ingresar OT
-          </button>
+                🖨️ Resumen
+            </button>
         </div>
       </div>
 
@@ -1168,28 +1177,31 @@ export default function OrdenesTrabajo() {
                           {o.estado}
                         </span>
                       </td>
-                      <td style={TD}>
+                        <td style={TD}>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          {o.estado === 'pendiente' && (
+                            {!soloLectura && o.estado === 'pendiente' && (
                             <button onClick={async () => {
-                              await api.put(`/ordenes-trabajo/${o.id}/estado`, { estado: 'completada' })
-                              cargar()
+                                await api.put(`/ordenes-trabajo/${o.id}/estado`, { estado: 'completada' })
+                                cargar()
                             }} style={{
-                              fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
-                              border: 'none', background: 'var(--success)', color: '#fff', cursor: 'pointer',
+                                fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
+                                border: 'none', background: 'var(--success)', color: '#fff', cursor: 'pointer',
                             }}>✓</button>
-                          )}
-                          <button onClick={async () => {
-                            if (!confirm(`¿Eliminar OT ${o.numero_ot}?`)) return
-                            await api.delete(`/ordenes-trabajo/${o.id}`)
-                            cargar()
-                          }} style={{
-                            fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
-                            border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
-                            color: 'var(--danger)', cursor: 'pointer',
-                          }}>✕</button>
+                            )}
+                            {!soloLectura && (
+                            <button onClick={async () => {
+                                if (!confirm(`¿Eliminar OT ${o.numero_ot}?`)) return
+                                await api.delete(`/ordenes-trabajo/${o.id}`)
+                                cargar()
+                            }} style={{
+                                fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
+                                border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
+                                color: 'var(--danger)', cursor: 'pointer',
+                            }}>✕</button>
+                            )}
+                            {soloLectura && <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>—</span>}
                         </div>
-                      </td>
+                        </td>
                     </tr>
                   )
                 })}
