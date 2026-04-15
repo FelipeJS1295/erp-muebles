@@ -48,6 +48,7 @@ async def listar_ordenes_trabajo(
             response.append({
                 "id": ot.id,
                 "numero_ot": ot.numero_ot,
+                "tipo": ot.tipo,
                 "fecha": str(ot.fecha),
                 "trabajador_id": ot.trabajador_id,
                 "trabajador_nombre": trabajador.nombre_completo if trabajador else None,
@@ -127,6 +128,7 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
 
             ot = OrdenTrabajo(
                 numero_ot=numero_ot,
+                tipo=ot_data.get("tipo", "produccion"),
                 fecha=fecha,
                 trabajador_id=trabajador.id,
                 producto_interno_id=producto.id,
@@ -228,5 +230,43 @@ async def listar_productos_produccion(db: AsyncSession = Depends(get_db)):
                 })
 
         return {"total": len(agrupados), "productos": agrupados}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@router.post("/reparaciones")
+async def crear_reparaciones(data: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        trabajador_id = data.get("trabajador_id")
+        ordenes = data.get("ordenes", [])
+        if not ordenes:
+            raise HTTPException(status_code=400, detail="Se requiere al menos una reparación")
+
+        trabajador = await db.get(Trabajador, trabajador_id)
+        if not trabajador:
+            raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+        creadas = []
+        for ot_data in ordenes:
+            numero_ot = ot_data["numero_ot"]
+            fecha = parse_fecha(ot_data["fecha"])
+
+            ot = OrdenTrabajo(
+                numero_ot=numero_ot,
+                fecha=fecha,
+                trabajador_id=trabajador.id,
+                producto_interno_id=1,
+                descripcion=ot_data.get("descripcion", "Reparación"),
+                cargo_trabajador=trabajador.cargo,
+                precio_aplicado=float(ot_data["precio"]),
+                estado='pendiente',
+                tipo='reparacion',
+            )
+            db.add(ot)
+            creadas.append(numero_ot)
+
+        await db.commit()
+        return {"mensaje": f"{len(creadas)} reparación(es) creadas", "numeros_ot": creadas}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
