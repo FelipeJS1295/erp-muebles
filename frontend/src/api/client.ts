@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://147.79.74.244/api/v1'
+const API_BASE_URL = 'https://b2b.jerkhome.cl/api/v1'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
