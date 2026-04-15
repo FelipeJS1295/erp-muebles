@@ -11,6 +11,7 @@ from app.routers.insumos import router as insumos_router
 from app.routers.sku_retail import router as sku_retail_router
 from app.routers.planos_corte import router as planos_corte_router
 from app.routers.trabajadores import router as trabajadores_router
+from app.routers.ordenes_trabajo import router as ordenes_trabajo_router
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
 from datetime import datetime
@@ -89,6 +90,7 @@ app.include_router(planos_corte_router)
 app.include_router(trabajadores_router)
 app.include_router(usuarios_router)
 app.include_router(auth_router)
+app.include_router(ordenes_trabajo_router)
 
 # =============================================================================
 # Helper: Auto-crear producto interno

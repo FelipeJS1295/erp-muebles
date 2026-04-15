@@ -37,6 +37,7 @@ interface Producto {
   sku_padre: string
   sku: string
   descripcion: string
+  descripcion_esqueleto?: string
   tipo_producto: string
   precio_venta: number
   precio_venta_descuento: number
@@ -609,6 +610,12 @@ function ProductoModal({ producto, onClose, onSave }: {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div>{label('Descripción', true)}<input value={form.descripcion} onChange={e => set('descripcion', e.target.value)} style={IS} placeholder="Ej: Seccional Richter Gris Oscuro" /></div>
+              <div>
+                {label('Descripción esqueleto')}
+                <input value={form.descripcion_esqueleto || ''} 
+                  onChange={e => set('descripcion_esqueleto', e.target.value)} 
+                  style={IS} placeholder="Ej: Esqueleto madera pino 2x2" />
+              </div>
               <div>{label('Tipo', true)}<select value={form.tipo_producto} onChange={e => set('tipo_producto', e.target.value)} style={IS}>{TIPOS.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select></div>
             </div>
             {seccion('Precios')}

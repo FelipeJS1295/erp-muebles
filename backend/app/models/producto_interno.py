@@ -28,6 +28,7 @@ class ProductoInterno(Base):
     sku_padre = Column(String(100), nullable=False, index=True)
     sku = Column(String(100), nullable=False, unique=True, index=True)
     descripcion = Column(String(500), nullable=False)
+    descripcion_esqueleto = Column(String(500), nullable=True)
     tipo_producto = Column(SAEnum(TipoProductoEnum), nullable=False)
 
     # Precios obligatorios

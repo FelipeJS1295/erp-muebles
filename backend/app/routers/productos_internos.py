@@ -32,6 +32,7 @@ async def listar_productos_internos(
                     "sku_padre": p.sku_padre,
                     "sku": p.sku,
                     "descripcion": p.descripcion,
+                    "descripcion_esqueleto": p.descripcion_esqueleto,
                     "tipo_producto": p.tipo_producto,
                     "precio_venta": p.precio_venta,
                     "precio_venta_descuento": p.precio_venta_descuento,
@@ -60,6 +61,7 @@ async def crear_producto_interno(producto: dict, db: AsyncSession = Depends(get_
             sku_padre=producto["sku_padre"],
             sku=producto["sku"],
             descripcion=producto["descripcion"],
+            descripcion_esqueleto=producto.get("descripcion_esqueleto"),
             tipo_producto=producto["tipo_producto"],
             precio_venta=producto["precio_venta"],
             precio_venta_descuento=producto["precio_venta_descuento"],
@@ -89,7 +91,7 @@ async def actualizar_producto_interno(id: int, producto: dict, db: AsyncSession 
         if not p:
             raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-        for campo in ["sku_padre", "sku", "descripcion", "tipo_producto", "precio_venta",
+        for campo in ["sku_padre", "sku", "descripcion", "descripcion_esqueleto", "tipo_producto", "precio_venta",
                       "precio_venta_descuento", "precio_costura", "precio_esqueleteria",
                       "precio_tapiceria", "color", "material", "peso", "dimensiones", "imagenes"]:
             if campo in producto:
