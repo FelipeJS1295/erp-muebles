@@ -361,6 +361,341 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
 }
 
 // =============================================================================
+// Modal Resumen
+// =============================================================================
+
+function ResumenModal({ onClose }: { onClose: () => void }) {
+  const [trabajadores, setTrabajadores] = useState<Trabajador[]>([])
+  const [trabajadorId, setTrabajadorId] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
+  const [loading, setLoading] = useState(false)
+  const [buscado, setBuscado] = useState(false)
+
+  useEffect(() => {
+    api.get('/ordenes-trabajo/trabajadores-produccion').then(r => setTrabajadores(r.data.trabajadores || []))
+  }, [])
+
+  const trabajador = trabajadores.find(t => t.id === Number(trabajadorId))
+  const cargoCol = trabajador ? cargoColor[trabajador.cargo] : null
+
+  const buscar = async () => {
+    if (!trabajadorId || !desde || !hasta) return
+    try {
+      setLoading(true)
+      const res = await api.get(`/ordenes-trabajo?trabajador_id=${trabajadorId}&fecha_desde=${desde}&fecha_hasta=${hasta}`)
+      setOrdenes(res.data.ordenes || [])
+      setBuscado(true)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const totalProduccion = ordenes.filter(o => o.tipo !== 'reparacion').reduce((sum, o) => sum + (o.precio_aplicado || 0), 0)
+  const totalReparaciones = ordenes.filter(o => o.tipo === 'reparacion').reduce((sum, o) => sum + (o.precio_aplicado || 0), 0)
+  const totalGeneral = totalProduccion + totalReparaciones
+
+  const imprimir = () => {
+    const ventana = window.open('', '_blank')
+    if (!ventana) return
+    ventana.document.write(`
+      <html>
+      <head>
+        <title>Resumen Producción - ${trabajador?.nombre_completo}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+          body { padding: 32px; color: #1a1a1a; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #1a1a1a; padding-bottom: 16px; }
+          .empresa { font-size: 22px; font-weight: 700; }
+          .sub { font-size: 12px; color: #666; margin-top: 4px; }
+          .info-trabajador { background: #f5f5f5; border-radius: 8px; padding: 16px; margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+          .info-item label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+          .info-item span { font-size: 14px; font-weight: 600; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+          th { padding: 10px 12px; background: #1a1a1a; color: white; font-size: 11px; text-align: left; }
+          td { padding: 9px 12px; border-bottom: 1px solid #eee; font-size: 12px; }
+          tr:nth-child(even) td { background: #f9f9f9; }
+          .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+          .badge-rep { background: #fff3ed; color: #e85d04; }
+          .badge-prod { background: #f0f0f0; color: #555; }
+          .totales { background: #f5f5f5; border-radius: 8px; padding: 16px; }
+          .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+          .total-row.final { font-size: 16px; font-weight: 700; border-top: 2px solid #1a1a1a; margin-top: 8px; padding-top: 12px; }
+          .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 16px; font-size: 10px; color: #888; text-align: center; }
+          @media print { body { padding: 16px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="empresa">Jerk Home</div>
+            <div class="sub">Resumen de Producción</div>
+          </div>
+          <div style="text-align:right; font-size:12px; color:#666;">
+            <div>Impreso: ${new Date().toLocaleDateString('es-CL')}</div>
+            <div>Período: ${desde} al ${hasta}</div>
+          </div>
+        </div>
+
+        <div class="info-trabajador">
+          <div class="info-item">
+            <label>Trabajador</label>
+            <span>${trabajador?.nombre_completo}</span>
+          </div>
+          <div class="info-item">
+            <label>Cargo</label>
+            <span>${trabajador?.cargo}</span>
+          </div>
+          <div class="info-item">
+            <label>Total OTs</label>
+            <span>${ordenes.length}</span>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>N° OT</th>
+              <th>Tipo</th>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th style="text-align:right">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ordenes.map(o => `
+              <tr>
+                <td style="font-family:monospace;font-weight:600">${o.numero_ot}</td>
+                <td><span class="badge ${o.tipo === 'reparacion' ? 'badge-rep' : 'badge-prod'}">${o.tipo === 'reparacion' ? 'Reparación' : 'Producción'}</span></td>
+                <td>${o.fecha}</td>
+                <td>${o.descripcion || '—'}</td>
+                <td style="text-align:right;font-weight:600">$${(o.precio_aplicado || 0).toLocaleString('es-CL')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="totales">
+          <div class="total-row">
+            <span>Producción (${ordenes.filter(o => o.tipo !== 'reparacion').length} OTs)</span>
+            <span>$${totalProduccion.toLocaleString('es-CL')}</span>
+          </div>
+          <div class="total-row">
+            <span>Reparaciones (${ordenes.filter(o => o.tipo === 'reparacion').length})</span>
+            <span>$${totalReparaciones.toLocaleString('es-CL')}</span>
+          </div>
+          <div class="total-row final">
+            <span>TOTAL A PAGAR</span>
+            <span>$${totalGeneral.toLocaleString('es-CL')}</span>
+          </div>
+        </div>
+
+        <div class="footer">Jerk Home ERP · b2b.jerkhome.cl · Documento generado automáticamente</div>
+        <script>window.onload = () => { window.print() }</script>
+      </body>
+      </html>
+    `)
+    ventana.document.close()
+  }
+
+  const IS: React.CSSProperties = {
+    background: 'var(--bg)', border: '0.5px solid var(--border)',
+    borderRadius: '7px', padding: '7px 10px', fontSize: '13px',
+    color: 'var(--text-1)', outline: 'none', width: '100%',
+  }
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      zIndex: 1000, padding: '24px', overflowY: 'auto',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg-2)', borderRadius: '12px',
+        border: '0.5px solid var(--border)', width: '100%', maxWidth: '800px',
+        animation: 'fadeIn 0.15s ease',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px 24px', borderBottom: '0.5px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          position: 'sticky', top: 0, background: 'var(--bg-2)', zIndex: 1, borderRadius: '12px 12px 0 0',
+        }}>
+          <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>
+            🖨️ Resumen de producción
+          </div>
+          <button onClick={onClose} style={{
+            background: 'var(--bg-3)', border: 'none', borderRadius: '6px',
+            width: '28px', height: '28px', cursor: 'pointer', color: 'var(--text-2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
+          }}>✕</button>
+        </div>
+
+        <div style={{ padding: '24px' }}>
+          {/* Filtros */}
+          <div style={{
+            background: 'var(--bg)', border: '0.5px solid var(--border)',
+            borderRadius: '10px', padding: '16px', marginBottom: '20px',
+          }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
+              Filtros
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '12px', alignItems: 'end' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px' }}>Trabajador</div>
+                <select value={trabajadorId} onChange={e => { setTrabajadorId(e.target.value); setBuscado(false) }} style={IS}>
+                  <option value="">Seleccionar trabajador...</option>
+                  {trabajadores.map(t => (
+                    <option key={t.id} value={t.id}>{t.nombre_completo} — {t.cargo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px' }}>Desde</div>
+                <input type="date" value={desde} onChange={e => { setDesde(e.target.value); setBuscado(false) }} style={IS} />
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px' }}>Hasta</div>
+                <input type="date" value={hasta} onChange={e => { setHasta(e.target.value); setBuscado(false) }} style={IS} />
+              </div>
+              <button onClick={buscar} disabled={!trabajadorId || !desde || !hasta || loading} style={{
+                padding: '8px 16px', borderRadius: '7px', border: 'none',
+                background: 'var(--accent)', color: 'var(--accent-fg)',
+                fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                opacity: (!trabajadorId || !desde || !hasta) ? 0.5 : 1,
+              }}>
+                {loading ? '...' : 'Buscar'}
+              </button>
+            </div>
+          </div>
+
+          {/* Resultados */}
+          {buscado && (
+            <>
+              {/* Info trabajador */}
+              {trabajador && (
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '12px', marginBottom: '16px',
+                }}>
+                  {[
+                    { label: 'Trabajador', value: trabajador.nombre_completo },
+                    { label: 'Cargo', value: trabajador.cargo, col: cargoCol },
+                    { label: 'Total OTs', value: ordenes.length.toString() },
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      background: 'var(--bg)', border: '0.5px solid var(--border)',
+                      borderRadius: '8px', padding: '12px',
+                    }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px' }}>{item.label}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: item.col?.color || 'var(--text-1)' }}>
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {ordenes.length === 0 ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
+                  No hay OTs para este trabajador en el período seleccionado
+                </div>
+              ) : (
+                <>
+                  {/* Tabla */}
+                  <div style={{ border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg)' }}>
+                          {['N° OT', 'Tipo', 'Fecha', 'Descripción', 'Precio'].map(h => (
+                            <th key={h} style={{
+                              padding: '9px 12px', fontSize: '11px', fontWeight: 500,
+                              color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)',
+                              textAlign: h === 'Precio' ? 'right' : 'left',
+                            }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ordenes.map((o, i) => (
+                          <tr key={i} style={{ borderBottom: i < ordenes.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)', fontWeight: 500 }}>
+                              {o.numero_ot}
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 500,
+                                background: o.tipo === 'reparacion' ? '#fff3ed' : 'var(--bg-3)',
+                                color: o.tipo === 'reparacion' ? '#e85d04' : 'var(--text-3)',
+                              }}>
+                                {o.tipo === 'reparacion' ? '🔧 Reparación' : 'Producción'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-2)' }}>{o.fecha}</td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-1)', maxWidth: '200px' }}>
+                              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {o.descripcion || '—'}
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
+                              ${(o.precio_aplicado || 0).toLocaleString('es-CL')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Totales */}
+                  <div style={{
+                    background: 'var(--bg)', border: '0.5px solid var(--border)',
+                    borderRadius: '8px', padding: '14px', marginBottom: '16px',
+                  }}>
+                    {[
+                      { label: `Producción (${ordenes.filter(o => o.tipo !== 'reparacion').length} OTs)`, value: totalProduccion },
+                      { label: `Reparaciones (${ordenes.filter(o => o.tipo === 'reparacion').length})`, value: totalReparaciones },
+                    ].map((t, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '13px', color: 'var(--text-2)' }}>
+                        <span>{t.label}</span>
+                        <span>${t.value.toLocaleString('es-CL')}</span>
+                      </div>
+                    ))}
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between',
+                      borderTop: '0.5px solid var(--border)', marginTop: '10px', paddingTop: '10px',
+                      fontSize: '15px', fontWeight: 700, color: 'var(--success)',
+                    }}>
+                      <span>Total a pagar</span>
+                      <span>${totalGeneral.toLocaleString('es-CL')}</span>
+                    </div>
+                  </div>
+
+                  {/* Botón imprimir */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button onClick={onClose} style={{
+                      padding: '10px 20px', borderRadius: '8px',
+                      border: '0.5px solid var(--border)', background: 'var(--bg)',
+                      color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer',
+                    }}>Cerrar</button>
+                    <button onClick={imprimir} style={{
+                      padding: '10px 24px', borderRadius: '8px', border: 'none',
+                      background: 'var(--text-1)', color: 'var(--bg)',
+                      fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                    }}>
+                      🖨️ Imprimir resumen
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
 // Modal Reparaciones
 // =============================================================================
 function ReparacionModal({ onClose, onSave }: { onClose: () => void, onSave: () => void }) {
@@ -603,6 +938,7 @@ export default function OrdenesTrabajo() {
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
+  const [mostrarResumen, setMostrarResumen] = useState(false)
 
   const cargar = async () => {
     try {
@@ -656,6 +992,7 @@ export default function OrdenesTrabajo() {
     <div style={{ animation: 'fadeIn 0.2s ease' }}>
       {mostrarIngreso && <IngresoOTModal onClose={() => setMostrarIngreso(false)} onSave={cargar} />}
       {mostrarReparacion && <ReparacionModal onClose={() => setMostrarReparacion(false)} onSave={cargar} />}
+      {mostrarResumen && <ResumenModal onClose={() => setMostrarResumen(false)} />}
 
       {/* Topbar */}
       <div style={{
@@ -709,6 +1046,14 @@ export default function OrdenesTrabajo() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <button onClick={() => setMostrarResumen(true)} style={{
+            padding: '8px 14px', borderRadius: '8px',
+            border: '0.5px solid var(--border)', background: 'var(--bg)',
+            color: 'var(--text-2)', fontSize: '12px', fontWeight: 500,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+            🖨️ Resumen
+          </button>  
           <button onClick={() => setMostrarReparacion(true)} style={{
             padding: '8px 14px', borderRadius: '8px', border: '0.5px solid #e85d04',
             background: 'transparent', color: '#e85d04',
