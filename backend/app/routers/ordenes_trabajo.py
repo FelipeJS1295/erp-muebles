@@ -65,7 +65,6 @@ async def listar_ordenes_trabajo(
 
 @router.post("")
 async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
-    """Crea una o más OTs en un solo request."""
     try:
         ordenes = data.get("ordenes", [])
         if not ordenes:
@@ -86,8 +85,35 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
             if not producto:
                 raise HTTPException(status_code=404, detail=f"Producto {ot_data['producto_interno_id']} no encontrado")
 
-            # Determinar precio y descripción según cargo
+            numero_ot = ot_data["numero_ot"]
+            fecha = ot_data["fecha"]
             cargo = trabajador.cargo
+
+            # Buscar OTs existentes con el mismo número
+            result_existentes = await db.execute(
+                select(OrdenTrabajo).where(OrdenTrabajo.numero_ot == numero_ot)
+            )
+            existentes = result_existentes.scalars().all()
+
+            for existente in existentes:
+                # Regla 1: mismo número OT + mismo cargo → NO permitido
+                if existente.cargo_trabajador == cargo:
+                    if cargo == 'esqueleteria':
+                        # Esqueletería: permitido solo si es el mismo día
+                        if str(existente.fecha) != str(fecha):
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"OT {numero_ot} ya existe en esqueletería para una fecha diferente ({existente.fecha}). Solo se permite el mismo día."
+                            )
+                        # Mismo día está bien → continúa
+                    else:
+                        # Costura o tapicería: nunca se puede repetir el mismo cargo
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"OT {numero_ot} ya existe con cargo '{cargo}'. El mismo número de OT no puede repetirse en el mismo cargo."
+                        )
+
+            # Determinar precio y descripción según cargo
             if cargo == 'costura':
                 precio = producto.precio_costura
                 descripcion = ot_data.get("descripcion") or producto.descripcion
@@ -102,8 +128,8 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
                 descripcion = ot_data.get("descripcion")
 
             ot = OrdenTrabajo(
-                numero_ot=ot_data["numero_ot"],
-                fecha=ot_data["fecha"],
+                numero_ot=numero_ot,
+                fecha=fecha,
                 trabajador_id=trabajador.id,
                 producto_interno_id=producto.id,
                 descripcion=descripcion,
@@ -112,7 +138,7 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
                 estado='pendiente',
             )
             db.add(ot)
-            creadas.append(ot_data["numero_ot"])
+            creadas.append(numero_ot)
 
         await db.commit()
         return {"mensaje": f"{len(creadas)} OT(s) creadas", "numeros_ot": creadas}
