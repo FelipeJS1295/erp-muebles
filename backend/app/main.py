@@ -736,6 +736,8 @@ async def sync_ripley(db: AsyncSession = Depends(get_db)):
 
             if existing:
                 existing.estado_marketplace = estado
+                existing.fecha_despacho = orden["fecha_despacho"]
+                existing.fecha_llegada = orden.get("fecha_llegada")
                 existing.fecha_actualizacion = datetime.utcnow()
                 actualizadas += 1
             else:
