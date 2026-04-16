@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
-import { dbApi, marketplaceApi } from '../api/client'
+import { dbApi, marketplaceApi, api } from '../api/client'
+
 
 // =============================================================================
 // Tipos
@@ -1111,6 +1112,24 @@ export default function Ordenes() {
                             border: '0.5px solid var(--border)', background: 'var(--bg)',
                             color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap',
                           }}>Ver</button>
+                          {['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && (
+                          <button onClick={async () => {
+                            if (!confirm(`¿Emitir boleta para orden ${o.orden_id}?`)) return
+                            try {
+                              const res = await api.post(`/boletas/emitir/${o.id}`)
+                              alert(`✅ Boleta emitida - Folio ${res.data.folio} - Total $${res.data.total?.toLocaleString('es-CL')}`)
+                              if (res.data.url_boleta) window.open(res.data.url_boleta, '_blank')
+                            } catch (e: any) {
+                              alert(`❌ Error: ${e.response?.data?.detail || 'Error al emitir boleta'}`)
+                            }
+                          }} style={{
+                            fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                            border: '0.5px solid var(--success)', background: 'var(--success-bg)',
+                            color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}>
+                            Boleta
+                          </button>
+                          )}
                           {['Nueva', 'Atrasada'].includes(estadoERP) && (
                             <button style={{
                               fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
