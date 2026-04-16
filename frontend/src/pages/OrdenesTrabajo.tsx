@@ -1151,10 +1151,12 @@ export default function OrdenesTrabajo() {
                 )) : filtradas.length === 0 ? (
                   <tr><td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
                     No hay órdenes de trabajo.{' '}
+                  {!soloLectura && (
                     <button onClick={() => setMostrarIngreso(true)}
                       style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '13px' }}>
                       Ingresar la primera
                     </button>
+                  )}
                   </td></tr>
                 ) : filtradas.map((o, i) => {
                   const col = cargoColor[o.cargo_trabajador] || { bg: 'var(--bg-3)', color: 'var(--text-3)' }
