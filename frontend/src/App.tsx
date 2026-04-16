@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from './store/themeStore'
+import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import Ordenes from './pages/Ordenes'
 import Productos from './pages/Productos'
@@ -10,7 +11,7 @@ import Usuarios from './pages/Usuarios'
 import Login from './pages/Login'
 import OrdenesTrabajo from './pages/OrdenesTrabajo'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'inventario' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -22,10 +23,9 @@ const s = {
   footer: { padding: '12px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
 }
 
-function NavItem({ id, label, icon, active, onClick, badgeType }: {
+function NavItem({ id, label, icon, active, onClick }: {
   id: string, label: string, icon: React.ReactNode,
   active: boolean, onClick: () => void,
-  badgeType?: 'danger' | 'warning'
 }) {
   return (
     <button onClick={onClick} style={{
@@ -43,11 +43,24 @@ function NavItem({ id, label, icon, active, onClick, badgeType }: {
   )
 }
 
+const ICONS = {
+  dashboard: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg>,
+  ordenes: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 4h12M1 7h12M1 10h12"/></svg>,
+  productos: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M7 1l5.5 3v6L7 13 1.5 10V4z"/><path d="M7 1v12M1.5 4L7 7l5.5-3"/></svg>,
+  productosInternos: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1" y="1" width="12" height="12" rx="1"/><path d="M4 7h6M7 4v6"/></svg>,
+  insumos: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M3 3h8v8H3zM1 1h2v2H1zM11 1h2v2h-2zM1 11h2v2H1zM11 11h2v2h-2z"/></svg>,
+  trabajadores: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="5" cy="4" r="2.5"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="5" r="1.5"/><path d="M11 9c1.7 0 3 1.3 3 3"/></svg>,
+  ordenesTrabajo: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2h10v10H2z"/><path d="M5 5h4M5 7h4M5 9h2"/></svg>,
+  usuarios: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="5" cy="4" r="2"/><path d="M1 12c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5"/><path d="M10 6l1.5 1.5L14 5"/></svg>,
+  inicio: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 7L7 1l6 6M2 6v7h4V9h2v4h4V6"/></svg>,
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const { dark, toggle } = useTheme()
   const [usuario, setUsuario] = useState<any>(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [modulo, setModulo] = useState<string | null>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -58,7 +71,7 @@ export default function App() {
     setCheckingAuth(false)
   }, [])
 
-  const handleLogin = (usuarioData: any, token: string) => {
+  const handleLogin = (usuarioData: any) => {
     setUsuario(usuarioData)
   }
 
@@ -66,21 +79,38 @@ export default function App() {
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
     setUsuario(null)
+    setModulo(null)
     setPage('dashboard')
   }
 
-  if (checkingAuth) return null
-
-  if (!usuario) {
-    return <Login onLogin={handleLogin} />
+  const cambiarModulo = (nuevoModulo: string) => {
+    setModulo(nuevoModulo)
+    // Página por defecto según módulo
+    if (nuevoModulo === 'ventas') setPage('dashboard')
+    if (nuevoModulo === 'contabilidad') setPage('ordenes-trabajo')
+    if (nuevoModulo === 'mantenedores') setPage('productos-internos')
   }
 
-  const isAdmin = ['admin_master', 'admin'].includes(usuario.rol)
+  if (checkingAuth) return null
+  if (!usuario) return <Login onLogin={handleLogin} />
+  if (!modulo) return <Home onModulo={cambiarModulo} />
+
+  const moduloLabel: Record<string, string> = {
+    ventas: 'Ventas',
+    contabilidad: 'Contabilidad',
+    mantenedores: 'Mantenedores',
+  }
+
+  const moduloColor: Record<string, string> = {
+    ventas: '#2563eb',
+    contabilidad: '#059669',
+    mantenedores: '#d97706',
+  }
 
   return (
     <div style={s.app}>
       <aside style={s.side}>
-        {/* Logo */}
+        {/* Logo + módulo activo */}
         <div style={s.logo}>
           <div style={s.logoSq}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -92,43 +122,51 @@ export default function App() {
           </div>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-1)' }}>Jerk Home</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>ERP Muebles · v0.1</div>
+            <div style={{ fontSize: '10px', marginTop: '1px', fontWeight: 500, color: moduloColor[modulo] || 'var(--text-3)' }}>
+              {moduloLabel[modulo] || modulo}
+            </div>
           </div>
         </div>
 
         {/* Nav */}
         <nav style={s.nav}>
-          <div style={s.sectionLabel}>Principal</div>
-          <NavItem id="dashboard" label="Resumen" active={page === 'dashboard'} onClick={() => setPage('dashboard')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg>}
-          />
-          <NavItem id="ordenes" label="Órdenes" active={page === 'ordenes'} onClick={() => setPage('ordenes')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 4h12M1 7h12M1 10h12"/></svg>}
-          />
-          <NavItem id="productos" label="Productos" active={page === 'productos'} onClick={() => setPage('productos')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M7 1l5.5 3v6L7 13 1.5 10V4z"/><path d="M7 1v12M1.5 4L7 7l5.5-3"/></svg>}
-          />
+          {/* Botón volver al inicio */}
+          <button onClick={() => setModulo(null)} style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '7px 8px', borderRadius: '7px', border: 'none',
+            background: 'transparent', cursor: 'pointer', marginBottom: '8px',
+            borderBottom: '0.5px solid var(--border)', paddingBottom: '12px',
+          }}>
+            <span style={{ color: 'var(--text-3)', display: 'flex' }}>{ICONS.inicio}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>Inicio</span>
+          </button>
 
-          <div style={s.sectionLabel}>Producción</div>
-          <NavItem id="productos-internos" label="Productos" active={page === 'productos-internos'} onClick={() => setPage('productos-internos')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1" y="1" width="12" height="12" rx="1"/><path d="M4 7h6M7 4v6"/></svg>}
-          />
-          <NavItem id="insumos" label="Insumos" active={page === 'insumos'} onClick={() => setPage('insumos')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M3 3h8v8H3zM1 1h2v2H1zM11 1h2v2h-2zM1 11h2v2H1zM11 11h2v2h-2z"/></svg>}
-          />
-          <NavItem id="trabajadores" label="Trabajadores" active={page === 'trabajadores'} onClick={() => setPage('trabajadores')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="5" cy="4" r="2.5"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="5" r="1.5"/><path d="M11 9c1.7 0 3 1.3 3 3"/></svg>}
-          />
-          <NavItem id="ordenes-trabajo" label="Órdenes de Trabajo" active={page === 'ordenes-trabajo'} onClick={() => setPage('ordenes-trabajo')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2h10v10H2z"/><path d="M5 5h4M5 7h4M5 9h2"/></svg>}
-          />
+          {/* Módulo Ventas */}
+          {modulo === 'ventas' && <>
+            <div style={s.sectionLabel}>Ventas</div>
+            <NavItem id="dashboard" label="Resumen" active={page === 'dashboard'} onClick={() => setPage('dashboard')} icon={ICONS.dashboard} />
+            <NavItem id="ordenes" label="Órdenes" active={page === 'ordenes'} onClick={() => setPage('ordenes')} icon={ICONS.ordenes} />
+            <NavItem id="productos" label="Productos" active={page === 'productos'} onClick={() => setPage('productos')} icon={ICONS.productos} />
+          </>}
 
-        {usuario.rol === 'admin_master' && <>
-          <div style={s.sectionLabel}>Configuración</div>
-          <NavItem id="usuarios" label="Usuarios" active={page === 'usuarios'} onClick={() => setPage('usuarios')}
-            icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="5" cy="4" r="2"/><path d="M1 12c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5"/><path d="M10 6l1.5 1.5L14 5"/></svg>}
-          />
-        </>}
+          {/* Módulo Contabilidad */}
+          {modulo === 'contabilidad' && <>
+            <div style={s.sectionLabel}>Contabilidad</div>
+            <NavItem id="ordenes-trabajo" label="Órdenes de Trabajo" active={page === 'ordenes-trabajo'} onClick={() => setPage('ordenes-trabajo')} icon={ICONS.ordenesTrabajo} />
+          </>}
+
+          {/* Módulo Mantenedores */}
+          {modulo === 'mantenedores' && <>
+            <div style={s.sectionLabel}>Catálogo</div>
+            <NavItem id="productos-internos" label="Productos" active={page === 'productos-internos'} onClick={() => setPage('productos-internos')} icon={ICONS.productosInternos} />
+            <NavItem id="insumos" label="Insumos" active={page === 'insumos'} onClick={() => setPage('insumos')} icon={ICONS.insumos} />
+            <div style={s.sectionLabel}>Personal</div>
+            <NavItem id="trabajadores" label="Trabajadores" active={page === 'trabajadores'} onClick={() => setPage('trabajadores')} icon={ICONS.trabajadores} />
+            {usuario.rol === 'admin_master' && <>
+              <div style={s.sectionLabel}>Configuración</div>
+              <NavItem id="usuarios" label="Usuarios" active={page === 'usuarios'} onClick={() => setPage('usuarios')} icon={ICONS.usuarios} />
+            </>}
+          </>}
         </nav>
 
         {/* Footer */}
