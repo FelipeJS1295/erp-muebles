@@ -91,7 +91,8 @@ const emptyReparacion = (): LineaReparacion => ({
 // =============================================================================
 function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () => void }) {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([])
-  const [productos, setProductos] = useState<Producto[]>([])
+  const [productosPadre, setProductosPadre] = useState<Producto[]>([])
+  const [productosAll, setProductosAll] = useState<Producto[]>([])
   const [trabajadorId, setTrabajadorId] = useState('')
   const [lineas, setLineas] = useState<LineaOT[]>([emptyLinea()])
   const [saving, setSaving] = useState(false)
@@ -99,11 +100,13 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
 
   useEffect(() => {
     api.get('/ordenes-trabajo/trabajadores-produccion').then(r => setTrabajadores(r.data.trabajadores || []))
-    api.get('/ordenes-trabajo/productos-produccion').then(r => setProductos(r.data.productos || []))
+    api.get('/ordenes-trabajo/productos-produccion').then(r => setProductosPadre(r.data.productos || []))
+    api.get('/ordenes-trabajo/productos-produccion-todos').then(r => setProductosAll(r.data.productos || []))
   }, [])
 
   const trabajador = trabajadores.find(t => t.id === Number(trabajadorId))
   const cargoCol = trabajador ? cargoColor[trabajador.cargo] : null
+  const productos = trabajador?.cargo === 'esqueleteria' ? productosPadre : productosAll
 
   const getDescripcion = (productoId: string) => {
     const producto = productos.find(p => p.id === Number(productoId))
@@ -223,7 +226,7 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
               Trabajador
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'center' }}>
-              <select value={trabajadorId} onChange={e => setTrabajadorId(e.target.value)}
+              <select value={trabajadorId} onChange={e => { setTrabajadorId(e.target.value); setLineas([emptyLinea()]) }}
                 style={{ ...IS, fontSize: '14px', padding: '10px 12px' }}>
                 <option value="">Seleccionar trabajador...</option>
                 {trabajadores.map(t => (
@@ -246,7 +249,7 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
               <thead>
                 <tr style={{ background: 'var(--bg)' }}>
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Producto {trabajador?.cargo === 'esqueleteria' ? '(SKU Padre)' : ''}
+                    {trabajador?.cargo === 'esqueleteria' ? 'Producto (SKU Padre)' : 'Producto (SKU)'}
                   </th>
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', width: '130px' }}>N° Orden</th>
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', width: '140px' }}>Fecha</th>
@@ -275,9 +278,9 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
                           <option value="">Seleccionar producto...</option>
                           {productos.map(p => (
                             <option key={p.id} value={p.id}>
-                              {p.sku_padre} — {trabajador?.cargo === 'esqueleteria'
-                                ? (p.descripcion_esqueleto || p.descripcion)
-                                : p.descripcion}
+                              {trabajador?.cargo === 'esqueleteria'
+                                ? `${p.sku_padre} — ${p.descripcion_esqueleto || p.descripcion}`
+                                : `${p.sku} — ${p.descripcion}`}
                             </option>
                           ))}
                         </select>
@@ -300,12 +303,12 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
                           placeholder={trabajadorId ? 'Auto-llenado al seleccionar producto' : '—'} />
                       </td>
                       {trabajador?.cargo === 'esqueleteria' && (
-                      <td style={{ padding: '10px 14px' }}>
-                        <input type="number" value={linea.unidades}
-                          onChange={e => updateLinea(linea.id, 'unidades', e.target.value)}
-                          style={{ ...IS, textAlign: 'center', fontWeight: 600 }}
-                          min="1" placeholder="1" disabled={!trabajadorId} />
-                      </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <input type="number" value={linea.unidades}
+                            onChange={e => updateLinea(linea.id, 'unidades', e.target.value)}
+                            style={{ ...IS, textAlign: 'center', fontWeight: 600 }}
+                            min="1" placeholder="1" disabled={!trabajadorId} />
+                        </td>
                       )}
                       <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                         {precio !== null ? (
@@ -329,7 +332,7 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
               {totalPrecio > 0 && (
                 <tfoot>
                   <tr style={{ background: 'var(--bg)', borderTop: '0.5px solid var(--border)' }}>
-                    <td colSpan={4} style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-3)', fontWeight: 500 }}>
+                    <td colSpan={trabajador?.cargo === 'esqueleteria' ? 5 : 4} style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-3)', fontWeight: 500 }}>
                       Total {lineas.length} OT{lineas.length > 1 ? 's' : ''}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: '15px', fontWeight: 700, color: 'var(--success)' }}>

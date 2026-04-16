@@ -276,3 +276,33 @@ async def crear_reparaciones(data: dict, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@router.get("/productos-produccion-todos")
+async def listar_productos_produccion_todos(db: AsyncSession = Depends(get_db)):
+    """Lista todos los productos internos sin agrupar."""
+    try:
+        result = await db.execute(
+            select(ProductoInterno)
+            .where(ProductoInterno.activo == 1)
+            .order_by(ProductoInterno.descripcion)
+        )
+        productos = result.scalars().all()
+        return {
+            "total": len(productos),
+            "productos": [
+                {
+                    "id": p.id,
+                    "sku_padre": p.sku_padre,
+                    "sku": p.sku,
+                    "descripcion": p.descripcion,
+                    "descripcion_esqueleto": p.descripcion_esqueleto,
+                    "tipo_producto": p.tipo_producto,
+                    "precio_costura": p.precio_costura,
+                    "precio_tapiceria": p.precio_tapiceria,
+                    "precio_esqueleteria": p.precio_esqueleteria,
+                }
+                for p in productos
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
