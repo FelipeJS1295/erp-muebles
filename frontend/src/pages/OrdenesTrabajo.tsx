@@ -929,8 +929,9 @@ function ReparacionModal({ onClose, onSave }: { onClose: () => void, onSave: () 
 // Página Principal
 // =============================================================================
 
-const usuario = JSON.parse(localStorage.getItem('usuario') || '{}')
-const soloLectura = usuario.rol === 'view'
+const usuarioGuardado = localStorage.getItem('usuario')
+const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
+const soloLectura = usuario?.rol === 'view'
 
 export default function OrdenesTrabajo() {
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
