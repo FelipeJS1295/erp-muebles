@@ -426,21 +426,54 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
     if (!ventana) return
     const titulo = esEsqueletos ? 'Maestra Esqueletos' : 'Vista Maestra'
 
-    const filas = Object.entries(tabla).map(([mkt, productos]) => {
+    // Para esqueletos: agrupar por sku_padre
+    const tablaFinal = esEsqueletos ? (() => {
+      const grupos: Record<string, Record<string, Record<string, number>>> = {}
+      ordenesFiltradas.forEach(o => {
+        const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' : o.marketplace === 'paris_chile' ? 'Paris' : 'Falabella'
+        const items = o.items || []
+        const primer = Array.isArray(items) ? items[0] : null
+        const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
+        const skuUpper = sku.toUpperCase()
+        const skuPadre = skuUpper.split('-')[0]
+
+        // Buscar producto interno por sku_padre
+        const prodInterno = productosInternos.find(p =>
+          p.sku_padre?.toUpperCase() === skuPadre ||
+          p.sku_padre?.toUpperCase() === skuUpper ||
+          p.sku?.toUpperCase() === skuUpper
+        )
+
+        const descEsqueleto = prodInterno?.descripcion_esqueleto
+        const skuPadreKey = prodInterno?.sku_padre || skuPadre || 'Sin SKU'
+        const key = `${skuPadreKey}|||${descEsqueleto || ''}`
+        const fecha = o.fecha_despacho || 'Sin fecha'
+
+        if (!grupos[mkt]) grupos[mkt] = {}
+        if (!grupos[mkt][key]) grupos[mkt][key] = {}
+        grupos[mkt][key][fecha] = (grupos[mkt][key][fecha] || 0) + 1
+      })
+      return grupos
+    })() : tabla
+
+    const filas = Object.entries(tablaFinal).map(([mkt, productos]) => {
       const totalMkt = Object.values(productos).reduce((sum, fm) =>
         sum + Object.values(fm).reduce((a, b) => a + b, 0), 0)
 
       const filasMkt = Object.entries(productos).map(([key, fechaMap]) => {
-        const [nombre, sku] = key.split('|||')
-        const descEsqueleto = esEsqueletos ? getDescripcionEsqueleto(sku) : null
+        const [skuPadreONombre, descEsqueleto] = key.split('|||')
         const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
+
         return `
           <tr>
             <td style="padding:8px 12px;border-bottom:1px solid #eee;padding-left:24px;min-width:220px">
-              <div style="font-size:12px;font-weight:500;color:#1a1a1a">${nombre}</div>
-              ${sku ? `<div style="font-size:10px;color:#888;font-family:monospace;margin-top:2px">${sku}</div>` : ''}
-              ${esEsqueletos && descEsqueleto ? `<div style="font-size:11px;color:#2563eb;margin-top:3px;font-weight:500">🦴 ${descEsqueleto}</div>` : ''}
-              ${esEsqueletos && !descEsqueleto ? `<div style="font-size:10px;color:#e85d04;margin-top:2px">Sin descripción esqueleto</div>` : ''}
+              ${esEsqueletos ? `
+                <div style="font-size:11px;color:#888;font-family:monospace;margin-bottom:2px">${skuPadreONombre}</div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a1a">${descEsqueleto || '<span style="color:#e85d04;font-size:11px">Sin descripción esqueleto</span>'}</div>
+              ` : `
+                <div style="font-size:12px;font-weight:500;color:#1a1a1a">${skuPadreONombre}</div>
+                ${descEsqueleto ? `<div style="font-size:10px;color:#888;font-family:monospace;margin-top:2px">${descEsqueleto}</div>` : ''}
+              `}
             </td>
             ${fechas.map(f => {
               const val = fechaMap[f] || 0
@@ -468,6 +501,16 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
       `
     }).join('')
 
+    // Recalcular totales para tabla esqueletos
+    const totalesFinales: Record<string, number> = {}
+    fechas.forEach(f => {
+      totalesFinales[f] = 0
+      Object.values(tablaFinal).forEach(prods =>
+        Object.values(prods).forEach(fm => { totalesFinales[f] += fm[f] || 0 })
+      )
+    })
+    const totalFinal = Object.values(totalesFinales).reduce((a, b) => a + b, 0)
+
     ventana.document.write(`
       <html>
       <head>
@@ -475,7 +518,7 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
         <style>
           * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
           body { padding:24px; color:#1a1a1a; }
-          .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:2px solid #1a1a1a; padding-bottom:14px; }
+          .header { display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:2px solid #1a1a1a; padding-bottom:14px; }
           .empresa { font-size:20px; font-weight:700; }
           .sub { font-size:12px; color:#666; margin-top:4px; }
           table { width:100%; border-collapse:collapse; border:1px solid #ddd; font-size:12px; }
@@ -483,7 +526,7 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
           th:first-child { text-align:left; border-left:none; }
           .legend { display:flex; gap:16px; margin-bottom:14px; font-size:11px; color:#666; align-items:center; }
           .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-          @media print { body { padding:12px; } button { display:none; } }
+          @media print { body { padding:12px; } }
         </style>
       </head>
       <body>
@@ -492,7 +535,7 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
             <div class="empresa">Jerk Home · ${titulo}</div>
             <div class="sub">
               Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              · ${ordenesFiltradas.length} órdenes activas · ${totalGeneral} unidades
+              · ${ordenesFiltradas.length} órdenes activas · ${totalFinal} unidades
             </div>
           </div>
         </div>
@@ -500,13 +543,12 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
           <span><span class="dot" style="background:#dc2626"></span>Atrasada</span>
           <span><span class="dot" style="background:#d97706"></span>Urgente (hoy/mañana)</span>
           <span><span class="dot" style="background:#059669"></span>Normal</span>
-          ${esEsqueletos ? '<span style="margin-left:8px"><span class="dot" style="background:#2563eb"></span>Con descripción esqueleto</span>' : ''}
         </div>
         <table>
           <thead>
             <tr>
               <th style="text-align:left;min-width:220px">
-                Marketplace / Producto${esEsqueletos ? ' / Esqueleto' : ''}
+                ${esEsqueletos ? 'SKU Padre / Descripción Esqueleto' : 'Marketplace / Producto'}
               </th>
               ${fechas.map(f => {
                 const d = new Date(f); d.setHours(0, 0, 0, 0)
@@ -522,13 +564,13 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
             <tr style="background:#e8e8e8;border-top:2px solid #1a1a1a">
               <td style="padding:10px 12px;font-weight:700;font-size:13px">Total general</td>
               ${fechas.map(f => {
-                const val = totalesFecha[f] || 0
+                const val = totalesFinales[f] || 0
                 const d = new Date(f); d.setHours(0, 0, 0, 0)
                 const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
                 const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
                 return `<td style="padding:10px 12px;text-align:center;font-weight:700;color:${color};border-left:1px solid #ddd">${val === 0 ? '—' : val}</td>`
               }).join('')}
-              <td style="padding:10px 12px;text-align:center;font-weight:700;font-size:14px;border-left:1px solid #ddd">${totalGeneral}</td>
+              <td style="padding:10px 12px;text-align:center;font-weight:700;font-size:14px;border-left:1px solid #ddd">${totalFinal}</td>
             </tr>
           </tbody>
         </table>
