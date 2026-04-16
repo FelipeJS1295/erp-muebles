@@ -127,8 +127,8 @@ async def eliminar_orden_manual(id: int, db: AsyncSession = Depends(get_db)):
         o = result.scalar_one_or_none()
         if not o:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
-        o.estado_marketplace = "cancelada"
+        await db.delete(o)
         await db.commit()
-        return {"mensaje": "Orden cancelada", "id": id}
+        return {"mensaje": "Orden eliminada", "id": id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
