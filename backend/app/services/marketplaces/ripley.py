@@ -24,13 +24,13 @@ ESTADOS_ACTIVOS = [
 def get_estado_erp(estado: str) -> str:
     mapa = {
         "WAITING_ACCEPTANCE": "Nueva",
-        "WAITING_DEBIT": "Nueva",
-        "SHIPPING": "Despachada",
-        "TO_COLLECT": "Nueva",
-        "RECEIVED": "Despachada",
-        "CLOSED": "Despachada",
-        "REFUSED": "Cancelada",
-        "CANCELED": "Cancelada",
+        "WAITING_DEBIT":      "Nueva",
+        "SHIPPING":           "Nueva",      # No despachado aún
+        "TO_COLLECT":         "Nueva",
+        "RECEIVED":           "Despachada",
+        "CLOSED":             "Despachada",
+        "REFUSED":            "Cancelada",
+        "CANCELED":           "Cancelada",
     }
     return mapa.get(estado, estado)
 
@@ -72,7 +72,6 @@ async def get_ordenes(dias: int = 30) -> list:
 
 
 def parsear_orden(o: dict) -> dict:
-    """Convierte orden Ripley al formato ERP."""
     order_lines = o.get("order_lines", [])
     items = []
     total = 0
@@ -94,11 +93,17 @@ def parsear_orden(o: dict) -> dict:
     shipping = customer.get("shipping_address", {})
     nombre_cliente = f"{customer.get('firstname', '')} {customer.get('lastname', '')}".strip()
 
+    # Fecha despacho desde shipping_deadline
     fecha_despacho = None
-    for line in order_lines:
-        if line.get("shipping_deadline"):
-            fecha_despacho = line["shipping_deadline"][:10]
-            break
+    shipping_deadline = o.get("shipping_deadline")
+    if shipping_deadline:
+        fecha_despacho = shipping_deadline[:10]
+
+    # Fecha llegada desde delivery_date
+    fecha_llegada = None
+    delivery_date = o.get("delivery_date")
+    if delivery_date:
+        fecha_llegada = delivery_date[:10]
 
     return {
         "marketplace": "ripley",
@@ -107,13 +112,15 @@ def parsear_orden(o: dict) -> dict:
         "cliente": nombre_cliente,
         "estado": o.get("order_state", ""),
         "fecha_despacho": fecha_despacho,
-        "fecha_llegada": o.get("delivery_date", ""),
+        "fecha_llegada": fecha_llegada,
         "total": total,
         "items": items,
         "raw": {
             "ciudad": shipping.get("city", ""),
             "region": shipping.get("state", ""),
-            "canal": o.get("channel", ""),
+            "carrier": o.get("shipping_company", ""),
+            "tracking": o.get("shipping_tracking", ""),
+            "tracking_url": o.get("shipping_tracking_url", ""),
             "created_date": o.get("created_date", ""),
         }
     }
