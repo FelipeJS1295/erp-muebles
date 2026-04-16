@@ -113,13 +113,15 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
                             detail=f"OT {numero_ot} ya existe con cargo '{cargo}'. El mismo número de OT no puede repetirse en el mismo cargo."
                         )
 
-            # Determinar precio y descripción
+# Determinar precio y descripción
             if cargo == 'costura':
                 precio = producto.precio_costura
                 descripcion = ot_data.get("descripcion") or producto.descripcion
+                unidades = 1
             elif cargo == 'tapiceria':
                 precio = producto.precio_tapiceria
                 descripcion = ot_data.get("descripcion") or producto.descripcion
+                unidades = 1
             elif cargo == 'esqueleteria':
                 unidades = int(ot_data.get("unidades", 1))
                 precio = producto.precio_esqueleteria * unidades
@@ -127,19 +129,20 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
             else:
                 precio = 0
                 descripcion = ot_data.get("descripcion")
+                unidades = 1
 
-                ot = OrdenTrabajo(
-                    numero_ot=numero_ot,
-                    fecha=fecha,
-                    trabajador_id=trabajador.id,
-                    producto_interno_id=producto.id,
-                    descripcion=descripcion,
-                    cargo_trabajador=cargo,
-                    precio_aplicado=precio,
-                    unidades=int(ot_data.get("unidades", 1)),
-                    estado='pendiente',
-                    tipo=ot_data.get("tipo", "produccion"),
-                )
+            ot = OrdenTrabajo(
+                numero_ot=numero_ot,
+                fecha=fecha,
+                trabajador_id=trabajador.id,
+                producto_interno_id=producto.id,
+                descripcion=descripcion,
+                cargo_trabajador=cargo,
+                precio_aplicado=precio,
+                unidades=unidades,
+                estado='pendiente',
+                tipo=ot_data.get("tipo", "produccion"),
+            )
             db.add(ot)
             creadas.append(numero_ot)
 
