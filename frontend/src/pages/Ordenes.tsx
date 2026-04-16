@@ -53,6 +53,15 @@ function getEstadoUnificado(orden: any): string {
     'pending': 'Nueva',
     'shipped': 'Despachada',
     'canceled': 'Cancelada',
+    // Ripley
+    'WAITING_ACCEPTANCE': 'Nueva',
+    'WAITING_DEBIT': 'Nueva',
+    'SHIPPING': 'Nueva',
+    'TO_COLLECT': 'Nueva',
+    'RECEIVED': 'Despachada',
+    'CLOSED': 'Despachada',
+    'REFUSED': 'Cancelada',
+    'CANCELED': 'Cancelada',
   }
 
   return mapa[orden.estado] || orden.estado
