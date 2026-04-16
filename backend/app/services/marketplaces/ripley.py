@@ -35,7 +35,10 @@ def get_estado_erp(estado: str) -> str:
     return mapa.get(estado, estado)
 
 
-async def get_ordenes(dias: int = 30) -> list:
+async def get_ordenes(dias: int = 30, api_key: str = None, base_url: str = None) -> list:
+    key = api_key or RIPLEY_API_KEY
+    url = base_url or RIPLEY_BASE_URL
+    headers = {"Authorization": key, "Accept": "application/json"}
     """Obtiene órdenes activas de Ripley."""
     fecha_desde = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%dT00:00:00Z")
     todas = []
