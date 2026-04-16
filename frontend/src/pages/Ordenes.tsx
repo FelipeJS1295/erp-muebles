@@ -435,18 +435,35 @@ const imprimirMaestra = (esEsqueletos: boolean) => {
     const skuUpper = sku.toUpperCase()
 
     if (o.marketplace === 'paris_chile') {
-      // Cruzar por sku_paris en skusRetail
-      const retail = skusRetail.find(r => r.sku_paris?.toUpperCase() === skuUpper)
-      if (retail) {
-        return productosInternos.find(p => p.id === retail.producto_interno_id)
-      }
+      // Sacar el -1 al final
+      const skuSinSufijo = skuUpper.replace(/-\d+$/, '')
+      const skuPadre = skuSinSufijo.split('-')[0]
+
+      // 1. Cruzar por sku_paris en skusRetail
+      let retail = skusRetail.find(r => r.sku_paris?.toUpperCase().replace(/-\d+$/, '') === skuSinSufijo)
+      if (retail) return productosInternos.find(p => p.id === retail.producto_interno_id)
+
+      // 2. Cruzar por sku directo
+      retail = skusRetail.find(r => r.sku?.toUpperCase() === skuSinSufijo)
+      if (retail) return productosInternos.find(p => p.id === retail.producto_interno_id)
+
+      // 3. Cruzar por sku_padre
+      return productosInternos.find(p =>
+        p.sku_padre?.toUpperCase() === skuPadre ||
+        p.sku?.toUpperCase() === skuSinSufijo
+      )
+
     } else if (o.marketplace === 'falabella') {
-      const retail = skusRetail.find(r => r.sku_falabella?.toUpperCase() === skuUpper)
-      if (retail) {
-        return productosInternos.find(p => p.id === retail.producto_interno_id)
-      }
+      const skuSinSufijo = skuUpper.replace(/-\d+$/, '')
+      const retail = skusRetail.find(r =>
+        r.sku_falabella?.toUpperCase() === skuSinSufijo ||
+        r.sku_falabella?.toUpperCase() === skuUpper
+      )
+      if (retail) return productosInternos.find(p => p.id === retail.producto_interno_id)
+      return productosInternos.find(p => p.sku?.toUpperCase() === skuSinSufijo)
+
     } else {
-      // Walmart: cruzar por sku_walmart o sku_padre
+      // Walmart
       const skuPadre = skuUpper.split('-')[0]
       const retail = skusRetail.find(r =>
         r.sku_walmart?.toUpperCase() === skuUpper ||
@@ -458,7 +475,6 @@ const imprimirMaestra = (esEsqueletos: boolean) => {
         p.sku?.toUpperCase() === skuUpper
       )
     }
-    return null
   }
 
   // Para esqueletos: agrupar SOLO por descripcion_esqueleto (sin marketplace)
