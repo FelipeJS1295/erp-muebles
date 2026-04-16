@@ -13,6 +13,7 @@ from app.routers.planos_corte import router as planos_corte_router
 from app.routers.trabajadores import router as trabajadores_router
 from app.routers.ordenes_trabajo import router as ordenes_trabajo_router
 from app.routers.clientes_ventas import router as clientes_ventas_router
+from app.routers.ordenes_manuales import router as ordenes_manuales_router
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
 from datetime import datetime
@@ -94,6 +95,7 @@ app.include_router(trabajadores_router)
 app.include_router(usuarios_router)
 app.include_router(auth_router)
 app.include_router(ordenes_trabajo_router)
+app.include_router(ordenes_manuales_router)
 app.include_router(clientes_ventas_router)
 
 # =============================================================================
