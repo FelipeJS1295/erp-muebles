@@ -341,6 +341,13 @@ function OrdenModal({ orden, onClose }: { orden: Orden, onClose: () => void }) {
 function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => void }) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroMkt, setFiltroMkt] = useState('')
+  const [productosInternos, setProductosInternos] = useState<any[]>([])
+
+  useEffect(() => {
+    import('../api/client').then(({ api }) => {
+      api.get('/productos-internos').then(r => setProductosInternos(r.data.productos || [])).catch(() => {})
+    })
+  }, [])
 
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
@@ -401,6 +408,136 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
     )
   })
   const totalGeneral = Object.values(totalesFecha).reduce((a, b) => a + b, 0)
+
+  const getDescripcionEsqueleto = (sku: string) => {
+    if (!sku) return null
+    const skuUpper = sku.toUpperCase()
+    const skuPadre = skuUpper.split('-')[0]
+    const producto = productosInternos.find(p =>
+      p.sku?.toUpperCase() === skuUpper ||
+      p.sku_padre?.toUpperCase() === skuPadre ||
+      p.sku_padre?.toUpperCase() === skuUpper
+    )
+    return producto?.descripcion_esqueleto || null
+  }
+
+  const imprimirMaestra = (esEsqueletos: boolean) => {
+    const ventana = window.open('', '_blank')
+    if (!ventana) return
+    const titulo = esEsqueletos ? 'Maestra Esqueletos' : 'Vista Maestra'
+
+    const filas = Object.entries(tabla).map(([mkt, productos]) => {
+      const totalMkt = Object.values(productos).reduce((sum, fm) =>
+        sum + Object.values(fm).reduce((a, b) => a + b, 0), 0)
+
+      const filasMkt = Object.entries(productos).map(([key, fechaMap]) => {
+        const [nombre, sku] = key.split('|||')
+        const descEsqueleto = esEsqueletos ? getDescripcionEsqueleto(sku) : null
+        const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
+        return `
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #eee;padding-left:24px;min-width:220px">
+              <div style="font-size:12px;font-weight:500;color:#1a1a1a">${nombre}</div>
+              ${sku ? `<div style="font-size:10px;color:#888;font-family:monospace;margin-top:2px">${sku}</div>` : ''}
+              ${esEsqueletos && descEsqueleto ? `<div style="font-size:11px;color:#2563eb;margin-top:3px;font-weight:500">🦴 ${descEsqueleto}</div>` : ''}
+              ${esEsqueletos && !descEsqueleto ? `<div style="font-size:10px;color:#e85d04;margin-top:2px">Sin descripción esqueleto</div>` : ''}
+            </td>
+            ${fechas.map(f => {
+              const val = fechaMap[f] || 0
+              const d = new Date(f); d.setHours(0, 0, 0, 0)
+              const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+              const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
+              const fw = val > 0 ? '600' : '400'
+              return `<td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;color:${color};font-weight:${fw};font-size:13px">${val === 0 ? '—' : val}</td>`
+            }).join('')}
+            <td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;font-weight:700;font-size:13px;background:#f9f9f9">${totalProd}</td>
+          </tr>
+        `
+      }).join('')
+
+      return `
+        <tr style="background:#f0f0f0">
+          <td style="padding:9px 12px;border-bottom:1px solid #ddd;border-top:2px solid #ddd">
+            <span style="font-weight:700;font-size:13px">${mkt}</span>
+            <span style="font-size:11px;color:#666;margin-left:8px">(${totalMkt} unidades)</span>
+          </td>
+          ${fechas.map(() => `<td style="padding:9px 12px;border-bottom:1px solid #ddd;border-left:1px solid #eee;background:#f0f0f0"></td>`).join('')}
+          <td style="padding:9px 12px;border-bottom:1px solid #ddd;border-left:1px solid #eee;text-align:center;font-weight:700;background:#f0f0f0">${totalMkt}</td>
+        </tr>
+        ${filasMkt}
+      `
+    }).join('')
+
+    ventana.document.write(`
+      <html>
+      <head>
+        <title>${titulo} - Jerk Home</title>
+        <style>
+          * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+          body { padding:24px; color:#1a1a1a; }
+          .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:2px solid #1a1a1a; padding-bottom:14px; }
+          .empresa { font-size:20px; font-weight:700; }
+          .sub { font-size:12px; color:#666; margin-top:4px; }
+          table { width:100%; border-collapse:collapse; border:1px solid #ddd; font-size:12px; }
+          th { padding:9px 12px; background:#1a1a1a; color:white; font-size:11px; white-space:nowrap; border-left:1px solid #444; }
+          th:first-child { text-align:left; border-left:none; }
+          .legend { display:flex; gap:16px; margin-bottom:14px; font-size:11px; color:#666; align-items:center; }
+          .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+          @media print { body { padding:12px; } button { display:none; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="empresa">Jerk Home · ${titulo}</div>
+            <div class="sub">
+              Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              · ${ordenesFiltradas.length} órdenes activas · ${totalGeneral} unidades
+            </div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="dot" style="background:#dc2626"></span>Atrasada</span>
+          <span><span class="dot" style="background:#d97706"></span>Urgente (hoy/mañana)</span>
+          <span><span class="dot" style="background:#059669"></span>Normal</span>
+          ${esEsqueletos ? '<span style="margin-left:8px"><span class="dot" style="background:#2563eb"></span>Con descripción esqueleto</span>' : ''}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left;min-width:220px">
+                Marketplace / Producto${esEsqueletos ? ' / Esqueleto' : ''}
+              </th>
+              ${fechas.map(f => {
+                const d = new Date(f); d.setHours(0, 0, 0, 0)
+                const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+                const color = diff < 0 ? '#ef4444' : diff <= 1 ? '#f59e0b' : 'white'
+                return `<th style="text-align:center;color:${color}">${f}<br><span style="font-size:9px;font-weight:400">${diff < 0 ? '⚠ Atrasada' : diff === 0 ? 'Hoy' : d.toLocaleDateString('es-CL', { weekday: 'short' })}</span></th>`
+              }).join('')}
+              <th style="text-align:center;background:#333">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filas}
+            <tr style="background:#e8e8e8;border-top:2px solid #1a1a1a">
+              <td style="padding:10px 12px;font-weight:700;font-size:13px">Total general</td>
+              ${fechas.map(f => {
+                const val = totalesFecha[f] || 0
+                const d = new Date(f); d.setHours(0, 0, 0, 0)
+                const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+                const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
+                return `<td style="padding:10px 12px;text-align:center;font-weight:700;color:${color};border-left:1px solid #ddd">${val === 0 ? '—' : val}</td>`
+              }).join('')}
+              <td style="padding:10px 12px;text-align:center;font-weight:700;font-size:14px;border-left:1px solid #ddd">${totalGeneral}</td>
+            </tr>
+          </tbody>
+        </table>
+        <script>window.onload = () => { window.print() }</script>
+      </body>
+      </html>
+    `)
+    ventana.document.close()
+  }
 
   const thM: React.CSSProperties = {
     padding: '9px 12px', fontSize: '11px', fontWeight: 500,
@@ -465,11 +602,29 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
               </div>
             </div>
           </div>
-          <button onClick={onClose} style={{
-            background: 'var(--bg-3)', border: 'none', borderRadius: '6px',
-            width: '28px', height: '28px', cursor: 'pointer', color: 'var(--text-2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0,
-          }}>✕</button>
+
+          {/* Botones imprimir + cerrar */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+            <button onClick={() => imprimirMaestra(false)} style={{
+              padding: '7px 14px', borderRadius: '7px',
+              border: '0.5px solid var(--border)', background: 'var(--bg)',
+              color: 'var(--text-2)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              🖨️ Imprimir maestra
+            </button>
+            <button onClick={() => imprimirMaestra(true)} style={{
+              padding: '7px 14px', borderRadius: '7px',
+              border: '0.5px solid var(--info)', background: 'var(--info-bg)',
+              color: 'var(--info)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              🦴 Maestra esqueletos
+            </button>
+            <button onClick={onClose} style={{
+              background: 'var(--bg-3)', border: 'none', borderRadius: '6px',
+              width: '28px', height: '28px', cursor: 'pointer', color: 'var(--text-2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0,
+            }}>✕</button>
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto', padding: '16px 20px' }}>
@@ -504,13 +659,13 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
                   <>
                     <tr key={mkt} style={{ background: 'var(--bg-3)' }}>
                       <td style={{ ...tdM, textAlign: 'left', fontWeight: 600 }}>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 500,
-                        background: mkt === 'Walmart' ? 'var(--walmart-bg)' : mkt === 'Paris' ? 'var(--paris-bg)' : 'var(--falabella-bg)',
-                        color: mkt === 'Walmart' ? 'var(--walmart)' : mkt === 'Paris' ? 'var(--paris)' : 'var(--falabella)',
-                      }}>
-                        {mkt}
-                      </span>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 500,
+                          background: mkt === 'Walmart' ? 'var(--walmart-bg)' : mkt === 'Paris' ? 'var(--paris-bg)' : 'var(--falabella-bg)',
+                          color: mkt === 'Walmart' ? 'var(--walmart)' : mkt === 'Paris' ? 'var(--paris)' : 'var(--falabella)',
+                        }}>
+                          {mkt}
+                        </span>
                       </td>
                       {fechas.map(f => <td key={f} style={{ ...tdM, background: 'var(--bg-3)' }} />)}
                       <td style={{ ...tdM, background: 'var(--bg-3)', fontWeight: 700, color: 'var(--text-1)' }}>{totalMkt}</td>
