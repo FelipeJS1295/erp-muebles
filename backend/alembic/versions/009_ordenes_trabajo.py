@@ -18,7 +18,7 @@ def upgrade() -> None:
     op.create_table(
         'ordenes_trabajo',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('numero_ot', sa.String(50), nullable=False, unique=True, index=True),
+        sa.Column('numero_ot', sa.String(50), nullable=False, index=True),
         sa.Column('fecha', sa.Date(), nullable=False),
         sa.Column('trabajador_id', sa.Integer(), sa.ForeignKey('trabajadores.id'), nullable=False),
         sa.Column('producto_interno_id', sa.Integer(), sa.ForeignKey('productos_internos.id'), nullable=False),

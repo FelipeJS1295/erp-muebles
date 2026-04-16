@@ -13,7 +13,7 @@ class OrdenTrabajo(Base):
     __tablename__ = "ordenes_trabajo"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    numero_ot = Column(String(50), nullable=False, unique=True, index=True)
+    numero_ot = Column(String(50), nullable=False, index=True)
     tipo = Column(String(20), default='produccion')
     fecha = Column(Date, nullable=False)
     trabajador_id = Column(Integer, ForeignKey('trabajadores.id'), nullable=False)
