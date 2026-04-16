@@ -14,6 +14,7 @@ class MarketplaceEnum(str, enum.Enum):
     paris = "paris_chile"
     falabella = "falabella"
     ripley = "ripley"
+    manual = "manual"
 
 
 class EstadoOrdenEnum(str, enum.Enum):
@@ -39,6 +40,7 @@ class Orden(Base):
 
     # Cliente
     cliente_nombre: Mapped[str] = mapped_column(String(200), nullable=True)
+    cliente_id: Mapped[int] = mapped_column(Integer, nullable=True)
 
     # Estado
     estado_marketplace: Mapped[str] = mapped_column(String(100), nullable=True)
@@ -71,6 +73,7 @@ class Orden(Base):
 
     # Raw data por si necesitamos algo extra
     raw: Mapped[dict] = mapped_column(JSON, nullable=True)
+    notas: Mapped[str] = mapped_column(String(500), nullable=True)
 
     def __repr__(self):
         return f"<Orden {self.marketplace} {self.orden_id_marketplace}>"
