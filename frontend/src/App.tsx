@@ -11,8 +11,9 @@ import Usuarios from './pages/Usuarios'
 import Login from './pages/Login'
 import OrdenesTrabajo from './pages/OrdenesTrabajo'
 import OrdenesManual from './pages/OrdenesManual'
+import Clientes from './pages/Clientes'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -165,6 +166,9 @@ export default function App() {
             <NavItem id="insumos" label="Insumos" active={page === 'insumos'} onClick={() => setPage('insumos')} icon={ICONS.insumos} />
             <div style={s.sectionLabel}>Personal</div>
             <NavItem id="trabajadores" label="Trabajadores" active={page === 'trabajadores'} onClick={() => setPage('trabajadores')} icon={ICONS.trabajadores} />
+            <div style={s.sectionLabel}>Ventas</div>
+            <NavItem id="clientes" label="Clientes" active={page === 'clientes'} onClick={() => setPage('clientes')}
+              icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="7" cy="4" r="3"/><path d="M1 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>}/>
             {usuario.rol === 'admin_master' && <>
               <div style={s.sectionLabel}>Configuración</div>
               <NavItem id="usuarios" label="Usuarios" active={page === 'usuarios'} onClick={() => setPage('usuarios')} icon={ICONS.usuarios} />
@@ -217,6 +221,7 @@ export default function App() {
         {page === 'usuarios' && <Usuarios />}
         {page === 'ordenes-trabajo' && <OrdenesTrabajo />}
         {page === 'ordenes-manual' && <OrdenesManual />}
+        {page === 'clientes' && <Clientes />}
       </main>
     </div>
   )
