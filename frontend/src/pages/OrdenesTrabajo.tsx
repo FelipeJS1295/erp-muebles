@@ -929,11 +929,11 @@ function ReparacionModal({ onClose, onSave }: { onClose: () => void, onSave: () 
 // Página Principal
 // =============================================================================
 
-const usuarioGuardado = localStorage.getItem('usuario')
-const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
-const soloLectura = usuario?.rol === 'view'
-
 export default function OrdenesTrabajo() {
+  const usuarioGuardado = localStorage.getItem('usuario')
+  const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
+  const soloLectura = usuario?.rol === 'view'
+  
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
   const [loading, setLoading] = useState(true)
   const [mostrarIngreso, setMostrarIngreso] = useState(false)
@@ -945,8 +945,6 @@ export default function OrdenesTrabajo() {
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
   const [mostrarResumen, setMostrarResumen] = useState(false)
-
-  console.log('usuario:', usuario, 'soloLectura:', soloLectura)
 
   const cargar = async () => {
     try {
