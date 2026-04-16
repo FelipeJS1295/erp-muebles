@@ -342,10 +342,12 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
   const [busqueda, setBusqueda] = useState('')
   const [filtroMkt, setFiltroMkt] = useState('')
   const [productosInternos, setProductosInternos] = useState<any[]>([])
+  const [skusRetail, setSkusRetail] = useState<any[]>([])
 
   useEffect(() => {
     import('../api/client').then(({ api }) => {
       api.get('/productos-internos').then(r => setProductosInternos(r.data.productos || [])).catch(() => {})
+      api.get('/sku-retail').then(r => setSkusRetail(r.data.skus || [])).catch(() => {})
     })
   }, [])
 
