@@ -946,6 +946,8 @@ export default function OrdenesTrabajo() {
   const [filtroHasta, setFiltroHasta] = useState('')
   const [mostrarResumen, setMostrarResumen] = useState(false)
 
+  console.log('usuario:', usuario, 'soloLectura:', soloLectura)
+
   const cargar = async () => {
     try {
       setLoading(true)
