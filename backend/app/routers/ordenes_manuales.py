@@ -99,9 +99,18 @@ async def actualizar_orden_manual(id: int, data: dict, db: AsyncSession = Depend
         if not o:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
 
-        for campo in ["estado_marketplace", "fecha_despacho", "fecha_llegada", "notas", "items", "total"]:
-            if campo in data:
-                setattr(o, campo, data[campo])
+        campo_map = {
+            "estado": "estado_marketplace",
+            "estado_marketplace": "estado_marketplace",
+            "fecha_despacho": "fecha_despacho",
+            "fecha_llegada": "fecha_llegada",
+            "notas": "notas",
+            "items": "items",
+            "total": "total",
+        }
+        for campo_input, campo_modelo in campo_map.items():
+            if campo_input in data:
+                setattr(o, campo_modelo, data[campo_input])
 
         await db.commit()
         return {"mensaje": "Orden actualizada", "id": id}

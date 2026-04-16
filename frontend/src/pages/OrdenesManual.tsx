@@ -673,7 +673,7 @@ export default function OrdenesManual() {
                           <button onClick={() => setOrdenSeleccionada(o)} style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '5px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-2)', cursor: 'pointer' }}>Ver</button>
                           {!soloLectura && o.estado === 'pendiente' && (
                             <button onClick={async () => {
-                              await api.put(`/ordenes-manuales/${o.id}`, { estado_marketplace: 'despachada' })
+                              await api.put(`/ordenes-manuales/${o.id}`, { estado: 'despachada' })
                               cargar()
                             }} style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '5px', border: 'none', background: 'var(--success)', color: '#fff', cursor: 'pointer' }}>
                               Despachar
