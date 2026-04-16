@@ -762,4 +762,6 @@ async def sync_ripley(db: AsyncSession = Depends(get_db)):
         await db.commit()
         return {"mensaje": f"Ripley sync OK", "creadas": creadas, "actualizadas": actualizadas}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error sync Ripley: {str(e)}")
