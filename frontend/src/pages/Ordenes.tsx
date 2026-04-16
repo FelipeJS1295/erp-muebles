@@ -466,7 +466,11 @@ const imprimirMaestra = (esEsqueletos: boolean) => {
     const grupos: Record<string, Record<string, number>> = {}
     ordenesFiltradas.forEach(o => {
       const prodInterno = buscarProductoInterno(o)
-      const descEsqueleto = prodInterno?.descripcion_esqueleto || `Sin esqueleto (${prodInterno?.sku_padre || 'desconocido'})`
+      const items = o.items || []
+      const primer = Array.isArray(items) ? items[0] : null
+      const skuOrden = primer?.sellerSku || primer?.sku || primer?.Sku || 'sin-sku'
+      const descEsqueleto = prodInterno?.descripcion_esqueleto || 
+        (prodInterno ? `Sin esqueleto (${prodInterno.sku_padre})` : `No cruzado (${skuOrden})`)
       const fecha = o.fecha_despacho || 'Sin fecha'
       if (!grupos[descEsqueleto]) grupos[descEsqueleto] = {}
       grupos[descEsqueleto][fecha] = (grupos[descEsqueleto][fecha] || 0) + 1
