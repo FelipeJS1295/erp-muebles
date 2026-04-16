@@ -27,6 +27,8 @@ from fastapi import Request
 from app.services.marketplaces.walmart import WalmartChileService
 from app.services.marketplaces.paris import ParisMarketplaceService
 from app.services.marketplaces.falabella import FalabellaService
+from app.services.marketplaces.ripley import get_ordenes as ripley_get_ordenes, parsear_orden as ripley_parsear_orden, get_estado_erp as ripley_estado_erp, ESTADOS_ACTIVOS as RIPLEY_ESTADOS_ACTIVOS
+
 
 
 # =============================================================================
@@ -711,3 +713,53 @@ async def sincronizar_ordenes_falabella(db: AsyncSession = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error sync Falabella: {str(e)}")
+
+
+@app.post("/api/v1/ordenes/sync/ripley")
+async def sync_ripley(db: AsyncSession = Depends(get_db)):
+    try:
+        ordenes_raw = await ripley_get_ordenes(dias=60)
+        creadas, actualizadas = 0, 0
+
+        for o_raw in ordenes_raw:
+            estado = o_raw.get("order_state", "")
+            if estado not in RIPLEY_ESTADOS_ACTIVOS + ["SHIPPING", "RECEIVED", "CLOSED", "CANCELED", "REFUSED"]:
+                continue
+
+            orden = parsear_orden(o_raw)
+            orden_id = orden["orden_id"]
+
+            result = await db.execute(
+                select(Orden).where(
+                    Orden.marketplace == "ripley",
+                    Orden.orden_id == orden_id,
+                )
+            )
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                existing.estado = estado
+                existing.fecha_actualizacion = datetime.now()
+                actualizadas += 1
+            else:
+                nueva = Orden(
+                    marketplace="ripley",
+                    orden_id=orden_id,
+                    sub_orden_id=orden["sub_orden_id"],
+                    cliente=orden["cliente"],
+                    estado=estado,
+                    fecha_despacho=orden["fecha_despacho"],
+                    fecha_llegada=orden.get("fecha_llegada"),
+                    total=orden["total"],
+                    items=orden["items"],
+                    raw=orden["raw"],
+                )
+                db.add(nueva)
+                creadas += 1
+
+            await auto_crear_producto_interno(db, orden["items"], "ripley")
+
+        await db.commit()
+        return {"mensaje": f"Ripley sync OK", "creadas": creadas, "actualizadas": actualizadas}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error sync Ripley: {str(e)}")
