@@ -53,4 +53,5 @@ export const dbApi = {
   syncWalmart: () => api.post('/ordenes/sync/walmart'),
   syncParis: () => api.post('/ordenes/sync/paris'),
   syncFalabella: () => api.post('/ordenes/sync/falabella'),
+  syncRipley: () => api.post('/ordenes/sync/ripley'),
 }

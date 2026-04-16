@@ -681,6 +681,7 @@ const imprimirMaestra = (esEsqueletos: boolean) => {
                 <option value="walmart_chile">Walmart Chile</option>
                 <option value="paris_chile">Paris Chile</option>
                 <option value="falabella">Falabella Chile</option>
+                <option value="ripley">Ripley Chile</option>
               </select>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px', marginLeft: '8px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} />
@@ -751,8 +752,8 @@ const imprimirMaestra = (esEsqueletos: boolean) => {
                       <td style={{ ...tdM, textAlign: 'left', fontWeight: 600 }}>
                         <span style={{
                           padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 500,
-                          background: mkt === 'Walmart' ? 'var(--walmart-bg)' : mkt === 'Paris' ? 'var(--paris-bg)' : 'var(--falabella-bg)',
-                          color: mkt === 'Walmart' ? 'var(--walmart)' : mkt === 'Paris' ? 'var(--paris)' : 'var(--falabella)',
+                          background: mkt === 'Walmart' ? 'var(--walmart-bg)' : mkt === 'Paris' ? 'var(--paris-bg)' : mkt === 'Ripley' ? 'var(--ripley-bg)' : 'var(--falabella-bg)',
+                          color: mkt === 'Walmart' ? 'var(--walmart)' : mkt === 'Paris' ? 'var(--paris)' : mkt === 'Ripley' ? 'var(--ripley)' : 'var(--falabella)',
                         }}>
                           {mkt}
                         </span>
@@ -830,7 +831,7 @@ export default function Ordenes() {
   const sincronizar = async () => {
     try {
       setSyncing(true)
-      await Promise.all([dbApi.syncWalmart(), dbApi.syncParis(), dbApi.syncFalabella()])
+      await Promise.all([dbApi.syncWalmart(), dbApi.syncParis(), dbApi.syncFalabella(), dbApi.syncRipley()])
       await cargar()
     } catch (e) { console.error(e) }
     finally { setSyncing(false) }
@@ -950,6 +951,7 @@ export default function Ordenes() {
           <option value="walmart_chile">Walmart Chile</option>
           <option value="paris_chile">Paris Chile</option>
           <option value="falabella">Falabella Chile</option>
+          <option value="ripley">Ripley Chile</option>
         </select>
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={IS}>
           <option value="activas">Activas (Nuevas + Atrasadas)</option>
@@ -1062,15 +1064,17 @@ export default function Ordenes() {
                     >
                       <td style={TD}><Checkbox checked={isSelected} onChange={() => toggleOne(o.orden_id)} /></td>
                       <td style={TD}>
-                        <span style={{
-                          padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500,
-                          background: isWalmart ? 'var(--walmart-bg)' :
-                                      o.marketplace === 'paris_chile' ? 'var(--paris-bg)' : 'var(--falabella-bg)',
-                          color: isWalmart ? 'var(--walmart)' :
-                                o.marketplace === 'paris_chile' ? 'var(--paris)' : 'var(--falabella)',
-                        }}>
-                          {isWalmart ? 'Walmart' : o.marketplace === 'paris_chile' ? 'Paris' : 'Falabella'}
-                        </span>
+                      <span style={{
+                        padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500,
+                        background: isWalmart ? 'var(--walmart-bg)' :
+                                    o.marketplace === 'paris_chile' ? 'var(--paris-bg)' :
+                                    o.marketplace === 'ripley' ? 'var(--ripley-bg)' : 'var(--falabella-bg)',
+                        color: isWalmart ? 'var(--walmart)' :
+                              o.marketplace === 'paris_chile' ? 'var(--paris)' :
+                              o.marketplace === 'ripley' ? 'var(--ripley)' : 'var(--falabella)',
+                      }}>
+                        {isWalmart ? 'Walmart' : o.marketplace === 'paris_chile' ? 'Paris' : o.marketplace === 'ripley' ? 'Ripley' : 'Falabella'}
+                      </span>
                       </td>
                       <td style={TD}>
                         <span style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '12px', fontFamily: 'monospace', background: fbs.bg, color: fbs.color, fontWeight: 500 }}>

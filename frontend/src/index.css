@@ -32,6 +32,8 @@
   --paris: #c026d3;
   --falabella: #21c212;
   --falabella-bg: #f5f3ff;
+  --ripley: #7c3aed;
+  --ripley-bg: #ede9fe;
 }
 
 [data-theme="dark"] {
@@ -60,6 +62,8 @@
   --paris: #e879a8;
   --falabella: #21c212;
   --falabella-bg: #1b6632;
+  --ripley: #7c3aed;
+  --ripley-bg: #ede9fe;
 }
 
 body {
