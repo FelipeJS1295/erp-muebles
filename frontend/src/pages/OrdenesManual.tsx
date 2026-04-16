@@ -152,18 +152,20 @@ function IngresoOrdenModal({ onClose, onSave }: { onClose: () => void, onSave: (
   const clienteSeleccionado = clientes.find(c => c.id === Number(clienteId))
   const total = items.reduce((sum, i) => sum + (i.precio * i.cantidad), 0)
 
-  const updateItem = (id: string, key: string, value: any) => {
+    const updateItem = (id: string, key: string, value: any) => {
     setItems(prev => prev.map(i => {
-      if (i.id !== id) return i
-      const updated = { ...i, [key]: value }
-      // Si selecciona producto interno, auto-llenar nombre y SKU
-      if (key === 'sku' && value) {
+        if (i.id !== id) return i
+        const updated = { ...i, [key]: value }
+        if (key === 'sku' && value) {
         const prod = productosInternos.find(p => p.sku === value)
-        if (prod) updated.nombre = prod.descripcion
-      }
-      return updated
+        if (prod) {
+            updated.nombre = prod.descripcion
+            updated.precio = prod.precio_venta || 0
+        }
+        }
+        return updated
     }))
-  }
+    }
 
   const guardar = async () => {
     setError('')
@@ -313,9 +315,8 @@ function IngresoOrdenModal({ onClose, onSave }: { onClose: () => void, onSave: (
                         <input type="number" value={item.cantidad} onChange={e => updateItem(item.id, 'cantidad', Number(e.target.value))}
                           style={{ ...IS, textAlign: 'center' }} min="1" />
                       </td>
-                      <td style={{ padding: '8px 14px', width: '120px' }}>
-                        <input type="number" value={item.precio} onChange={e => updateItem(item.id, 'precio', Number(e.target.value))}
-                          style={IS} min="0" placeholder="0" />
+                      <td style={{ padding: '8px 14px', width: '120px', fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
+                        ${(item.precio).toLocaleString('es-CL')}
                       </td>
                       <td style={{ padding: '8px 14px', width: '110px', fontWeight: 600, color: 'var(--success)', fontSize: '13px' }}>
                         ${(item.precio * item.cantidad).toLocaleString('es-CL')}
