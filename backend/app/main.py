@@ -715,7 +715,7 @@ async def sincronizar_ordenes_falabella(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=502, detail=f"Error sync Falabella: {str(e)}")
 
 
-@app.post("/api/v1/ordenes/sync/ripley")
+@app.post("/api/v1/ordenes/sync/ripley", tags=["Base de Datos"])
 async def sync_ripley(db: AsyncSession = Depends(get_db)):
     try:
         ordenes_raw = await ripley_get_ordenes(dias=60)
@@ -723,44 +723,45 @@ async def sync_ripley(db: AsyncSession = Depends(get_db)):
 
         for o_raw in ordenes_raw:
             estado = o_raw.get("order_state", "")
-            if estado not in RIPLEY_ESTADOS_ACTIVOS + ["SHIPPING", "RECEIVED", "CLOSED", "CANCELED", "REFUSED"]:
-                continue
-
-            orden = parsear_orden(o_raw)
+            orden = ripley_parsear_orden(o_raw)
             orden_id = orden["orden_id"]
 
             result = await db.execute(
                 select(Orden).where(
-                    Orden.marketplace == "ripley",
-                    Orden.orden_id == orden_id,
+                    Orden.marketplace == MarketplaceEnum.ripley,
+                    Orden.orden_id_marketplace == orden_id,
                 )
             )
             existing = result.scalar_one_or_none()
 
             if existing:
-                existing.estado = estado
-                existing.fecha_actualizacion = datetime.now()
+                existing.estado_marketplace = estado
+                existing.fecha_actualizacion = datetime.utcnow()
                 actualizadas += 1
             else:
                 nueva = Orden(
-                    marketplace="ripley",
-                    orden_id=orden_id,
+                    marketplace=MarketplaceEnum.ripley,
+                    orden_id_marketplace=orden_id,
                     sub_orden_id=orden["sub_orden_id"],
-                    cliente=orden["cliente"],
-                    estado=estado,
+                    cliente_nombre=orden["cliente"],
+                    estado_marketplace=estado,
                     fecha_despacho=orden["fecha_despacho"],
-                    fecha_llegada=orden.get("fecha_llegada"),
                     total=orden["total"],
                     items=orden["items"],
+                    fecha_marketplace=datetime.utcnow(),
                     raw=orden["raw"],
                 )
                 db.add(nueva)
                 creadas += 1
 
-            await auto_crear_producto_interno(db, orden["items"], "ripley")
+            for item in orden["items"]:
+                sku = item.get("sku")
+                nombre = item.get("nombre")
+                if sku:
+                    await auto_crear_producto_interno(sku, nombre, 'ripley', sku, db)
 
         await db.commit()
-        return {"mensaje": f"Ripley sync OK", "creadas": creadas, "actualizadas": actualizadas}
+        return {"mensaje": "Ripley sync OK", "creadas": creadas, "actualizadas": actualizadas}
     except Exception as e:
         import traceback
         traceback.print_exc()
