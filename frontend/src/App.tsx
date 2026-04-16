@@ -10,8 +10,9 @@ import Trabajadores from './pages/Trabajadores'
 import Usuarios from './pages/Usuarios'
 import Login from './pages/Login'
 import OrdenesTrabajo from './pages/OrdenesTrabajo'
+import OrdenesManual from './pages/OrdenesManual'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -147,6 +148,8 @@ export default function App() {
             <NavItem id="dashboard" label="Resumen" active={page === 'dashboard'} onClick={() => setPage('dashboard')} icon={ICONS.dashboard} />
             <NavItem id="ordenes" label="Órdenes" active={page === 'ordenes'} onClick={() => setPage('ordenes')} icon={ICONS.ordenes} />
             <NavItem id="productos" label="Productos" active={page === 'productos'} onClick={() => setPage('productos')} icon={ICONS.productos} />
+            <NavItem id="ordenes-manual" label="Ventas Directas" active={page === 'ordenes-manual'} onClick={() => setPage('ordenes-manual')}
+              icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 3h12v9a1 1 0 01-1 1H2a1 1 0 01-1-1V3z"/><path d="M1 3l1.5-2h9L13 3"/><path d="M5 7h4"/></svg>}/>
           </>}
 
           {/* Módulo Contabilidad */}
@@ -213,6 +216,7 @@ export default function App() {
         {page === 'trabajadores' && <Trabajadores />}
         {page === 'usuarios' && <Usuarios />}
         {page === 'ordenes-trabajo' && <OrdenesTrabajo />}
+        {page === 'ordenes-manual' && <OrdenesManual />}
       </main>
     </div>
   )
