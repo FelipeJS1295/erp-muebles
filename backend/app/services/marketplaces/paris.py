@@ -87,21 +87,49 @@ class ParisMarketplaceService:
         if isinstance(ordenes_raw, dict):
             ordenes_raw = [ordenes_raw]
 
-        ordenes = []
-        for o in ordenes_raw:
-            ordenes.append({
-                "sub_orden_id": o.get("subOrderNumber") or o.get("id"),
-                "orden_padre_id": o.get("orderNumber"),
-                "estado": o.get("status") or o.get("state"),
-                "fecha_creacion": o.get("createdAt"),
-                "fecha_actualizacion": o.get("updatedAt"),
-                "carrier": o.get("carrier"),
-                "label_url": o.get("labelUrl"),
-                "fecha_despacho": o.get("dispatchDate"),
-                "fecha_llegada": o.get("arrivalDate"),
-                "cliente": o.get("order", {}).get("customer", {}).get("name"),
-                "items": o.get("items", []),
-            })
+    ordenes = []
+    for o in ordenes_raw:
+        orden_padre = o.get("order", {})
+        customer = orden_padre.get("customer", {})
+        billing = orden_padre.get("billingAddress", {})
+        shipping = o.get("shippingAddress", {})
+
+        ordenes.append({
+            "sub_orden_id": o.get("subOrderNumber") or o.get("id"),
+            "orden_padre_id": o.get("orderNumber"),
+            "estado": o.get("status") or o.get("state"),
+            "fecha_creacion": o.get("createdAt"),
+            "fecha_actualizacion": o.get("updatedAt"),
+            "carrier": o.get("carrier"),
+            "label_url": o.get("labelUrl"),
+            "fecha_despacho": o.get("dispatchDate"),
+            "fecha_llegada": o.get("arrivalDate"),
+            "cliente": customer.get("name") or o.get("order", {}).get("customer", {}).get("name"),
+            "items": o.get("items", []),
+            # Datos completos para boleta
+            "customer": {
+                "nombre": customer.get("name"),
+                "email": customer.get("email"),
+                "rut": customer.get("documentNumber"),
+                "tipo_documento": customer.get("documentType"),
+            },
+            "billing": {
+                "nombre": f"{billing.get('firstName', '')} {billing.get('lastName', '')}".strip(),
+                "direccion": billing.get("address1"),
+                "ciudad": billing.get("city"),
+                "comuna": billing.get("communaCode"),
+                "telefono": billing.get("phone"),
+            },
+            "shipping": {
+                "nombre": f"{shipping.get('firstName', '')} {shipping.get('lastName', '')}".strip(),
+                "direccion": shipping.get("address1"),
+                "ciudad": shipping.get("city"),
+                "comuna": shipping.get("communaCode"),
+                "telefono": shipping.get("phone"),
+            },
+            "costo_despacho": o.get("cost"),
+            "raw": o,
+        })
 
         return {
             "marketplace": "paris_chile",
