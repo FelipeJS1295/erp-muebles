@@ -28,6 +28,7 @@ def get_estado_erp(estado: str) -> str:
         "SHIPPING":           "Nueva",      # No despachado aún
         "TO_COLLECT":         "Nueva",
         "RECEIVED":           "Despachada",
+        "SHIPPED":            "Despachada",
         "CLOSED":             "Despachada",
         "REFUSED":            "Cancelada",
         "CANCELED":           "Cancelada",

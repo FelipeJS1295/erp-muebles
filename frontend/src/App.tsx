@@ -12,8 +12,9 @@ import Login from './pages/Login'
 import OrdenesTrabajo from './pages/OrdenesTrabajo'
 import OrdenesManual from './pages/OrdenesManual'
 import Clientes from './pages/Clientes'
+import ApiClientes from './pages/ApiClientes'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -167,6 +168,9 @@ export default function App() {
             <div style={s.sectionLabel}>Personal</div>
             <NavItem id="trabajadores" label="Trabajadores" active={page === 'trabajadores'} onClick={() => setPage('trabajadores')} icon={ICONS.trabajadores} />
             <div style={s.sectionLabel}>Ventas</div>
+            <div style={s.sectionLabel}>Integraciones</div>
+            <NavItem id="api-clientes" label="APIs de Clientes" active={page === 'api-clientes'} onClick={() => setPage('api-clientes')}
+              icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 5h12M1 9h12M5 1v12M9 1v12"/></svg>}/>
             <NavItem id="clientes" label="Clientes" active={page === 'clientes'} onClick={() => setPage('clientes')}
               icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="7" cy="4" r="3"/><path d="M1 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>}/>
             {usuario.rol === 'admin_master' && <>
@@ -222,6 +226,7 @@ export default function App() {
         {page === 'ordenes-trabajo' && <OrdenesTrabajo />}
         {page === 'ordenes-manual' && <OrdenesManual />}
         {page === 'clientes' && <Clientes />}
+        {page === 'api-clientes' && <ApiClientes />}
       </main>
     </div>
   )
