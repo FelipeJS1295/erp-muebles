@@ -423,165 +423,191 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
     return producto?.descripcion_esqueleto || null
   }
 
-  const imprimirMaestra = (esEsqueletos: boolean) => {
-    const ventana = window.open('', '_blank')
-    if (!ventana) return
-    const titulo = esEsqueletos ? 'Maestra Esqueletos' : 'Vista Maestra'
+const imprimirMaestra = (esEsqueletos: boolean) => {
+  const ventana = window.open('', '_blank')
+  if (!ventana) return
+  const titulo = esEsqueletos ? 'Maestra Esqueletos' : 'Vista Maestra'
 
-    // Para esqueletos: agrupar por sku_padre
-    const tablaFinal = esEsqueletos ? (() => {
-      const grupos: Record<string, Record<string, Record<string, number>>> = {}
-      ordenesFiltradas.forEach(o => {
-        const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' : o.marketplace === 'paris_chile' ? 'Paris' : 'Falabella'
-        const items = o.items || []
-        const primer = Array.isArray(items) ? items[0] : null
-        const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
-        const skuUpper = sku.toUpperCase()
-        const skuPadre = skuUpper.split('-')[0]
+  const buscarProductoInterno = (o: Orden) => {
+    const items = o.items || []
+    const primer = Array.isArray(items) ? items[0] : null
+    const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
+    const skuUpper = sku.toUpperCase()
 
-        // Buscar producto interno por sku_padre
-        const prodInterno = productosInternos.find(p =>
-          p.sku_padre?.toUpperCase() === skuPadre ||
-          p.sku_padre?.toUpperCase() === skuUpper ||
-          p.sku?.toUpperCase() === skuUpper
-        )
+    if (o.marketplace === 'paris_chile') {
+      // Cruzar por sku_paris en skusRetail
+      const retail = skusRetail.find(r => r.sku_paris?.toUpperCase() === skuUpper)
+      if (retail) {
+        return productosInternos.find(p => p.id === retail.producto_interno_id)
+      }
+    } else if (o.marketplace === 'falabella') {
+      const retail = skusRetail.find(r => r.sku_falabella?.toUpperCase() === skuUpper)
+      if (retail) {
+        return productosInternos.find(p => p.id === retail.producto_interno_id)
+      }
+    } else {
+      // Walmart: cruzar por sku_walmart o sku_padre
+      const skuPadre = skuUpper.split('-')[0]
+      const retail = skusRetail.find(r =>
+        r.sku_walmart?.toUpperCase() === skuUpper ||
+        r.sku?.toUpperCase() === skuUpper
+      )
+      if (retail) return productosInternos.find(p => p.id === retail.producto_interno_id)
+      return productosInternos.find(p =>
+        p.sku_padre?.toUpperCase() === skuPadre ||
+        p.sku?.toUpperCase() === skuUpper
+      )
+    }
+    return null
+  }
 
-        const descEsqueleto = prodInterno?.descripcion_esqueleto
-        const skuPadreKey = prodInterno?.sku_padre || skuPadre || 'Sin SKU'
-        const key = `${skuPadreKey}|||${descEsqueleto || ''}`
-        const fecha = o.fecha_despacho || 'Sin fecha'
+  // Para esqueletos: agrupar SOLO por descripcion_esqueleto (sin marketplace)
+  const tablaFinal = esEsqueletos ? (() => {
+    const grupos: Record<string, Record<string, number>> = {}
+    ordenesFiltradas.forEach(o => {
+      const prodInterno = buscarProductoInterno(o)
+      const descEsqueleto = prodInterno?.descripcion_esqueleto || `Sin esqueleto (${prodInterno?.sku_padre || 'desconocido'})`
+      const fecha = o.fecha_despacho || 'Sin fecha'
+      if (!grupos[descEsqueleto]) grupos[descEsqueleto] = {}
+      grupos[descEsqueleto][fecha] = (grupos[descEsqueleto][fecha] || 0) + 1
+    })
+    return grupos
+  })() : null
 
-        if (!grupos[mkt]) grupos[mkt] = {}
-        if (!grupos[mkt][key]) grupos[mkt][key] = {}
-        grupos[mkt][key][fecha] = (grupos[mkt][key][fecha] || 0) + 1
-      })
-      return grupos
-    })() : tabla
+  // Para maestra normal: agrupar por marketplace → producto
+  const tablaFinalNormal = !esEsqueletos ? tabla : null
 
-    const filas = Object.entries(tablaFinal).map(([mkt, productos]) => {
-      const totalMkt = Object.values(productos).reduce((sum, fm) =>
-        sum + Object.values(fm).reduce((a, b) => a + b, 0), 0)
+  // Totales por fecha para esqueletos
+  const totalesFinales: Record<string, number> = {}
+  fechas.forEach(f => { totalesFinales[f] = 0 })
 
-      const filasMkt = Object.entries(productos).map(([key, fechaMap]) => {
-        const [skuPadreONombre, descEsqueleto] = key.split('|||')
-        const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
+  const filasEsqueleto = esEsqueletos ? Object.entries(tablaFinal!).map(([desc, fechaMap]) => {
+    const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
+    fechas.forEach(f => { totalesFinales[f] = (totalesFinales[f] || 0) + (fechaMap[f] || 0) })
+    const sinEsqueleto = desc.startsWith('Sin esqueleto')
+    return `
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid #eee;min-width:260px">
+          <div style="font-size:14px;font-weight:${sinEsqueleto ? '400' : '600'};color:${sinEsqueleto ? '#e85d04' : '#1a1a1a'}">${desc}</div>
+        </td>
+        ${fechas.map(f => {
+          const val = fechaMap[f] || 0
+          const d = new Date(f); d.setHours(0, 0, 0, 0)
+          const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+          const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
+          return `<td style="padding:10px 14px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;color:${color};font-weight:${val > 0 ? '700' : '400'};font-size:14px">${val === 0 ? '—' : val}</td>`
+        }).join('')}
+        <td style="padding:10px 14px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;font-weight:700;font-size:14px;background:#f9f9f9">${totalProd}</td>
+      </tr>
+    `
+  }).join('') : ''
 
-        return `
+  // Filas maestra normal (por marketplace)
+  const filasNormal = !esEsqueletos ? Object.entries(tablaFinalNormal!).map(([mkt, productos]) => {
+    const totalMkt = Object.values(productos).reduce((sum, fm) =>
+      sum + Object.values(fm).reduce((a, b) => a + b, 0), 0)
+    fechas.forEach(f => {
+      Object.values(productos).forEach(fm => { totalesFinales[f] = (totalesFinales[f] || 0) + (fm[f] || 0) })
+    })
+    const filasMkt = Object.entries(productos).map(([key, fechaMap]) => {
+      const [nombre, sku] = key.split('|||')
+      const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
+      return `
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #eee;padding-left:24px">
+            <div style="font-size:12px;font-weight:500">${nombre}</div>
+            ${sku ? `<div style="font-size:10px;color:#888;font-family:monospace">${sku}</div>` : ''}
+          </td>
+          ${fechas.map(f => {
+            const val = fechaMap[f] || 0
+            const d = new Date(f); d.setHours(0, 0, 0, 0)
+            const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+            const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
+            return `<td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;color:${color};font-weight:${val > 0 ? '600' : '400'};font-size:13px">${val === 0 ? '—' : val}</td>`
+          }).join('')}
+          <td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;font-weight:700;background:#f9f9f9">${totalProd}</td>
+        </tr>
+      `
+    }).join('')
+    return `
+      <tr style="background:#f0f0f0">
+        <td style="padding:9px 12px;border-bottom:1px solid #ddd;border-top:2px solid #ddd;font-weight:700">${mkt} (${totalMkt})</td>
+        ${fechas.map(() => `<td style="border-left:1px solid #eee;background:#f0f0f0"></td>`).join('')}
+        <td style="padding:9px 12px;text-align:center;font-weight:700;background:#f0f0f0;border-left:1px solid #eee">${totalMkt}</td>
+      </tr>
+      ${filasMkt}
+    `
+  }).join('') : ''
+
+  const totalFinal = Object.values(totalesFinales).reduce((a, b) => a + b, 0)
+
+  ventana.document.write(`
+    <html>
+    <head>
+      <title>${titulo} - Jerk Home</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+        body { padding:24px; color:#1a1a1a; }
+        .header { display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:2px solid #1a1a1a; padding-bottom:14px; }
+        .empresa { font-size:20px; font-weight:700; }
+        .sub { font-size:12px; color:#666; margin-top:4px; }
+        table { width:100%; border-collapse:collapse; border:1px solid #ddd; }
+        th { padding:10px 14px; background:#1a1a1a; color:white; font-size:12px; white-space:nowrap; border-left:1px solid #444; }
+        th:first-child { text-align:left; border-left:none; }
+        .legend { display:flex; gap:16px; margin-bottom:14px; font-size:11px; color:#666; }
+        .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+        @media print { body { padding:12px; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="empresa">Jerk Home · ${titulo}</div>
+          <div class="sub">
+            ${new Date().toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+            · ${ordenesFiltradas.length} órdenes · ${totalFinal} unidades
+          </div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#dc2626"></span>Atrasada</span>
+        <span><span class="dot" style="background:#d97706"></span>Urgente</span>
+        <span><span class="dot" style="background:#059669"></span>Normal</span>
+      </div>
+      <table>
+        <thead>
           <tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #eee;padding-left:24px;min-width:220px">
-              ${esEsqueletos ? `
-                <div style="font-size:11px;color:#888;font-family:monospace;margin-bottom:2px">${skuPadreONombre}</div>
-                <div style="font-size:13px;font-weight:600;color:#1a1a1a">${descEsqueleto || '<span style="color:#e85d04;font-size:11px">Sin descripción esqueleto</span>'}</div>
-              ` : `
-                <div style="font-size:12px;font-weight:500;color:#1a1a1a">${skuPadreONombre}</div>
-                ${descEsqueleto ? `<div style="font-size:10px;color:#888;font-family:monospace;margin-top:2px">${descEsqueleto}</div>` : ''}
-              `}
-            </td>
+            <th style="min-width:260px">${esEsqueletos ? 'Descripción Esqueleto' : 'Marketplace / Producto'}</th>
             ${fechas.map(f => {
-              const val = fechaMap[f] || 0
+              const d = new Date(f); d.setHours(0, 0, 0, 0)
+              const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+              const color = diff < 0 ? '#ef4444' : diff <= 1 ? '#f59e0b' : 'white'
+              return `<th style="text-align:center;color:${color}">${f}<br><span style="font-size:9px;font-weight:400">${diff < 0 ? '⚠ Atrasada' : diff === 0 ? 'Hoy' : d.toLocaleDateString('es-CL',{weekday:'short'})}</span></th>`
+            }).join('')}
+            <th style="text-align:center">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${esEsqueletos ? filasEsqueleto : filasNormal}
+          <tr style="background:#e8e8e8;border-top:2px solid #1a1a1a">
+            <td style="padding:10px 14px;font-weight:700;font-size:13px">Total general</td>
+            ${fechas.map(f => {
+              const val = totalesFinales[f] || 0
               const d = new Date(f); d.setHours(0, 0, 0, 0)
               const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
               const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
-              const fw = val > 0 ? '600' : '400'
-              return `<td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;color:${color};font-weight:${fw};font-size:13px">${val === 0 ? '—' : val}</td>`
+              return `<td style="padding:10px 14px;text-align:center;font-weight:700;color:${color};border-left:1px solid #ddd;font-size:14px">${val === 0 ? '—' : val}</td>`
             }).join('')}
-            <td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;font-weight:700;font-size:13px;background:#f9f9f9">${totalProd}</td>
+            <td style="padding:10px 14px;text-align:center;font-weight:700;font-size:15px;border-left:1px solid #ddd">${totalFinal}</td>
           </tr>
-        `
-      }).join('')
-
-      return `
-        <tr style="background:#f0f0f0">
-          <td style="padding:9px 12px;border-bottom:1px solid #ddd;border-top:2px solid #ddd">
-            <span style="font-weight:700;font-size:13px">${mkt}</span>
-            <span style="font-size:11px;color:#666;margin-left:8px">(${totalMkt} unidades)</span>
-          </td>
-          ${fechas.map(() => `<td style="padding:9px 12px;border-bottom:1px solid #ddd;border-left:1px solid #eee;background:#f0f0f0"></td>`).join('')}
-          <td style="padding:9px 12px;border-bottom:1px solid #ddd;border-left:1px solid #eee;text-align:center;font-weight:700;background:#f0f0f0">${totalMkt}</td>
-        </tr>
-        ${filasMkt}
-      `
-    }).join('')
-
-    // Recalcular totales para tabla esqueletos
-    const totalesFinales: Record<string, number> = {}
-    fechas.forEach(f => {
-      totalesFinales[f] = 0
-      Object.values(tablaFinal).forEach(prods =>
-        Object.values(prods).forEach(fm => { totalesFinales[f] += fm[f] || 0 })
-      )
-    })
-    const totalFinal = Object.values(totalesFinales).reduce((a, b) => a + b, 0)
-
-    ventana.document.write(`
-      <html>
-      <head>
-        <title>${titulo} - Jerk Home</title>
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
-          body { padding:24px; color:#1a1a1a; }
-          .header { display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:2px solid #1a1a1a; padding-bottom:14px; }
-          .empresa { font-size:20px; font-weight:700; }
-          .sub { font-size:12px; color:#666; margin-top:4px; }
-          table { width:100%; border-collapse:collapse; border:1px solid #ddd; font-size:12px; }
-          th { padding:9px 12px; background:#1a1a1a; color:white; font-size:11px; white-space:nowrap; border-left:1px solid #444; }
-          th:first-child { text-align:left; border-left:none; }
-          .legend { display:flex; gap:16px; margin-bottom:14px; font-size:11px; color:#666; align-items:center; }
-          .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-          @media print { body { padding:12px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <div class="empresa">Jerk Home · ${titulo}</div>
-            <div class="sub">
-              Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              · ${ordenesFiltradas.length} órdenes activas · ${totalFinal} unidades
-            </div>
-          </div>
-        </div>
-        <div class="legend">
-          <span><span class="dot" style="background:#dc2626"></span>Atrasada</span>
-          <span><span class="dot" style="background:#d97706"></span>Urgente (hoy/mañana)</span>
-          <span><span class="dot" style="background:#059669"></span>Normal</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align:left;min-width:220px">
-                ${esEsqueletos ? 'SKU Padre / Descripción Esqueleto' : 'Marketplace / Producto'}
-              </th>
-              ${fechas.map(f => {
-                const d = new Date(f); d.setHours(0, 0, 0, 0)
-                const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-                const color = diff < 0 ? '#ef4444' : diff <= 1 ? '#f59e0b' : 'white'
-                return `<th style="text-align:center;color:${color}">${f}<br><span style="font-size:9px;font-weight:400">${diff < 0 ? '⚠ Atrasada' : diff === 0 ? 'Hoy' : d.toLocaleDateString('es-CL', { weekday: 'short' })}</span></th>`
-              }).join('')}
-              <th style="text-align:center;background:#333">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filas}
-            <tr style="background:#e8e8e8;border-top:2px solid #1a1a1a">
-              <td style="padding:10px 12px;font-weight:700;font-size:13px">Total general</td>
-              ${fechas.map(f => {
-                const val = totalesFinales[f] || 0
-                const d = new Date(f); d.setHours(0, 0, 0, 0)
-                const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-                const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
-                return `<td style="padding:10px 12px;text-align:center;font-weight:700;color:${color};border-left:1px solid #ddd">${val === 0 ? '—' : val}</td>`
-              }).join('')}
-              <td style="padding:10px 12px;text-align:center;font-weight:700;font-size:14px;border-left:1px solid #ddd">${totalFinal}</td>
-            </tr>
-          </tbody>
-        </table>
-        <script>window.onload = () => { window.print() }</script>
-      </body>
-      </html>
-    `)
-    ventana.document.close()
-  }
+        </tbody>
+      </table>
+      <script>window.onload = () => { window.print() }</script>
+    </body>
+    </html>
+  `)
+  ventana.document.close()
+}
 
   const thM: React.CSSProperties = {
     padding: '9px 12px', fontSize: '11px', fontWeight: 500,
