@@ -379,7 +379,9 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
   const tabla = useMemo(() => {
     const grupos: Record<string, Record<string, Record<string, number>>> = {}
     ordenesFiltradas.forEach(o => {
-      const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' : o.marketplace === 'paris_chile' ? 'Paris' : 'Falabella'
+      const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' : 
+            o.marketplace === 'paris_chile' ? 'Paris' : 
+            o.marketplace === 'ripley' ? 'Ripley' : 'Falabella'
       const items = o.items || []
       const primer = Array.isArray(items) ? items[0] : null
       const producto = primer?.nombre || primer?.name || primer?.Name || '—'
