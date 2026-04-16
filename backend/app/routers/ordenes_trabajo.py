@@ -279,7 +279,6 @@ async def crear_reparaciones(data: dict, db: AsyncSession = Depends(get_db)):
 
 @router.get("/productos-produccion-todos")
 async def listar_productos_produccion_todos(db: AsyncSession = Depends(get_db)):
-    """Lista todos los productos internos sin agrupar."""
     try:
         result = await db.execute(
             select(ProductoInterno)
@@ -297,6 +296,8 @@ async def listar_productos_produccion_todos(db: AsyncSession = Depends(get_db)):
                     "descripcion": p.descripcion,
                     "descripcion_esqueleto": p.descripcion_esqueleto,
                     "tipo_producto": p.tipo_producto,
+                    "precio_venta": p.precio_venta,
+                    "precio_venta_descuento": p.precio_venta_descuento,
                     "precio_costura": p.precio_costura,
                     "precio_tapiceria": p.precio_tapiceria,
                     "precio_esqueleteria": p.precio_esqueleteria,
