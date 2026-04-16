@@ -27,6 +27,7 @@ interface LineaOT {
   fecha: string
   producto_interno_id: string
   descripcion: string
+  unidades: string
 }
 
 interface LineaReparacion {
@@ -50,6 +51,7 @@ interface OrdenTrabajo {
   descripcion: string
   cargo_trabajador: string
   precio_aplicado: number
+  unidades?: number
   estado: string
   tipo: string
   fecha_creacion: string
@@ -73,6 +75,7 @@ const emptyLinea = (): LineaOT => ({
   fecha: new Date().toISOString().split('T')[0],
   producto_interno_id: '',
   descripcion: '',
+  unidades: '1',
 })
 
 const emptyReparacion = (): LineaReparacion => ({
@@ -109,12 +112,13 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
     return producto.descripcion
   }
 
-  const getPrecio = (productoId: string) => {
+  const getPrecio = (productoId: string, unidades: string = '1') => {
     const producto = productos.find(p => p.id === Number(productoId))
     if (!producto || !trabajador) return null
+    const u = parseInt(unidades) || 1
     if (trabajador.cargo === 'costura') return producto.precio_costura
     if (trabajador.cargo === 'tapiceria') return producto.precio_tapiceria
-    if (trabajador.cargo === 'esqueleteria') return producto.precio_esqueleteria
+    if (trabajador.cargo === 'esqueleteria') return producto.precio_esqueleteria * u
     return null
   }
 
@@ -143,7 +147,7 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
     setLineas(prev => prev.filter(l => l.id !== id))
   }
 
-  const totalPrecio = lineas.reduce((sum, l) => sum + (getPrecio(l.producto_interno_id) || 0), 0)
+  const totalPrecio = lineas.reduce((sum, l) => sum + (getPrecio(l.producto_interno_id, l.unidades) || 0), 0)
 
   const guardar = async () => {
     setError('')
@@ -163,6 +167,7 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
           trabajador_id: Number(trabajadorId),
           producto_interno_id: Number(l.producto_interno_id),
           descripcion: l.descripcion,
+          unidades: parseInt(l.unidades) || 1,
         }))
       })
       onSave(); onClose()
@@ -246,13 +251,18 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', width: '130px' }}>N° Orden</th>
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', width: '140px' }}>Fecha</th>
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Descripción</th>
+                  {trabajador?.cargo === 'esqueleteria' && (
+                    <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em', width: '80px' }}>
+                      Unidades
+                    </th>
+                  )}
                   <th style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em', width: '110px' }}>Precio</th>
                   <th style={{ width: '40px', borderBottom: '0.5px solid var(--border)' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {lineas.map((linea, idx) => {
-                  const precio = getPrecio(linea.producto_interno_id)
+                  const precio = getPrecio(linea.producto_interno_id, linea.unidades)
                   return (
                     <tr key={linea.id} style={{
                       borderBottom: idx < lineas.length - 1 ? '0.5px solid var(--border)' : 'none',
@@ -289,6 +299,14 @@ function IngresoOTModal({ onClose, onSave }: { onClose: () => void, onSave: () =
                           style={{ ...IS, fontSize: '12px', color: 'var(--text-2)' }}
                           placeholder={trabajadorId ? 'Auto-llenado al seleccionar producto' : '—'} />
                       </td>
+                      {trabajador?.cargo === 'esqueleteria' && (
+                      <td style={{ padding: '10px 14px' }}>
+                        <input type="number" value={linea.unidades}
+                          onChange={e => updateLinea(linea.id, 'unidades', e.target.value)}
+                          style={{ ...IS, textAlign: 'center', fontWeight: 600 }}
+                          min="1" placeholder="1" disabled={!trabajadorId} />
+                      </td>
+                      )}
                       <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                         {precio !== null ? (
                           <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--success)' }}>
@@ -1172,6 +1190,11 @@ export default function OrdenesTrabajo() {
                       </td>
                       <td style={{ ...TD, fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
                         ${(o.precio_aplicado || 0).toLocaleString('es-CL')}
+                        {o.unidades && o.unidades > 1 && (
+                          <span style={{ fontSize: '10px', color: 'var(--text-3)', fontWeight: 400, marginLeft: '4px' }}>
+                            ×{o.unidades}
+                          </span>
+                        )}
                       </td>
                       <td style={TD}>
                         <span style={{ padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 500, background: estCol.bg, color: estCol.color }}>

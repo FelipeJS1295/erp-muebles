@@ -58,6 +58,7 @@ async def listar_ordenes_trabajo(
                 "producto_descripcion": producto.descripcion if producto else None,
                 "descripcion": ot.descripcion,
                 "cargo_trabajador": ot.cargo_trabajador,
+                "unidades": ot.unidades,
                 "precio_aplicado": ot.precio_aplicado,
                 "estado": ot.estado,
                 "fecha_creacion": ot.fecha_creacion.isoformat() if ot.fecha_creacion else None,
@@ -120,23 +121,25 @@ async def crear_ordenes_trabajo(data: dict, db: AsyncSession = Depends(get_db)):
                 precio = producto.precio_tapiceria
                 descripcion = ot_data.get("descripcion") or producto.descripcion
             elif cargo == 'esqueleteria':
-                precio = producto.precio_esqueleteria
+                unidades = int(ot_data.get("unidades", 1))
+                precio = producto.precio_esqueleteria * unidades
                 descripcion = ot_data.get("descripcion") or producto.descripcion_esqueleto or producto.descripcion
             else:
                 precio = 0
                 descripcion = ot_data.get("descripcion")
 
-            ot = OrdenTrabajo(
-                numero_ot=numero_ot,
-                tipo=ot_data.get("tipo", "produccion"),
-                fecha=fecha,
-                trabajador_id=trabajador.id,
-                producto_interno_id=producto.id,
-                descripcion=descripcion,
-                cargo_trabajador=cargo,
-                precio_aplicado=precio,
-                estado='pendiente',
-            )
+                ot = OrdenTrabajo(
+                    numero_ot=numero_ot,
+                    fecha=fecha,
+                    trabajador_id=trabajador.id,
+                    producto_interno_id=producto.id,
+                    descripcion=descripcion,
+                    cargo_trabajador=cargo,
+                    precio_aplicado=precio,
+                    unidades=int(ot_data.get("unidades", 1)),
+                    estado='pendiente',
+                    tipo=ot_data.get("tipo", "produccion"),
+                )
             db.add(ot)
             creadas.append(numero_ot)
 
