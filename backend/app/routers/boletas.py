@@ -142,6 +142,8 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
