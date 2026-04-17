@@ -52,7 +52,7 @@ function getEstadoUnificado(orden: any): string {
     // Paris
     'ready_to_ship': 'Nueva', 'awaiting_fulfillment': 'Nueva',
     'delivery_in_progress': 'Despachada', 'delivered': 'Despachada',
-    'deleted': 'Cancelada',
+    'deleted': 'Cancelada', 'pending_by_seller': 'Nueva',
     // Falabella
     'pending': 'Nueva',
     'shipped': 'Despachada',
