@@ -822,11 +822,28 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
   const [emitiendo, setEmitiendo] = useState(false)
   const [error, setError] = useState('')
   const [resultado, setResultado] = useState<any>(null)
+  const [ordenData, setOrdenData] = useState<any>(null)
+  const [loadingData, setLoadingData] = useState(true)
+
+  useEffect(() => {
+    api.get(`/ordenes/${orden.id}/data`)
+      .then(r => setOrdenData(r.data.data))
+      .catch(() => setOrdenData(null))
+      .finally(() => setLoadingData(false))
+  }, [orden.id])
 
   const items = orden.items || []
-  const total = orden.total || 0
-  const monto_neto = Math.round(total / 1.19)
-  const iva = total - monto_neto
+
+  const totalItems = items.reduce((sum: number, item: any) => {
+    const precio = Number(item.precio || item.priceAfterDiscounts || item.basePrice || item.ItemPrice || 0)
+    const cantidad = Number(item.cantidad || item.Quantity || 1)
+    return sum + (precio * cantidad)
+  }, 0)
+
+  const costoDespacho = ordenData?.costo_despacho || 0
+  const total = ordenData?.total || (totalItems + costoDespacho) || orden.total || 0
+  const monto_neto = total > 0 ? Math.round(total / 1.19) : 0
+  const iva = total > 0 ? total - monto_neto : 0
 
   const emitir = async () => {
     try {
@@ -839,12 +856,6 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
     } finally { setEmitiendo(false) }
   }
 
-  const IS: React.CSSProperties = {
-    background: 'var(--bg)', border: '0.5px solid var(--border)',
-    borderRadius: '7px', padding: '8px 12px', fontSize: '13px',
-    color: 'var(--text-1)',
-  }
-
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
@@ -854,12 +865,14 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
       <div onClick={e => e.stopPropagation()} style={{
         background: 'var(--bg-2)', borderRadius: '12px',
         border: '0.5px solid var(--border)', width: '100%', maxWidth: '560px',
+        maxHeight: '90vh', overflowY: 'auto',
         animation: 'fadeIn 0.15s ease',
       }}>
         {/* Header */}
         <div style={{
           padding: '16px 20px', borderBottom: '0.5px solid var(--border)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          position: 'sticky', top: 0, background: 'var(--bg-2)', zIndex: 1,
         }}>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>
             {resultado ? '✅ Boleta emitida' : 'Emitir Boleta Electrónica'}
@@ -871,11 +884,14 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
         </div>
 
         <div style={{ padding: '20px' }}>
-          {!resultado ? <>
-            {/* Datos de la boleta */}
+          {loadingData ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
+              Cargando datos de la orden...
+            </div>
+          ) : !resultado ? <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
 
-              {/* Marketplace + Orden */}
+              {/* Orden */}
               <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Orden</div>
                 <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
@@ -888,14 +904,55 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
                     <span style={{ fontWeight: 500, color: 'var(--info)', fontFamily: 'monospace' }}>{orden.orden_id}</span>
                   </div>
                 </div>
+                {ordenData?.tipo_documento && (
+                  <div style={{ marginTop: '6px', fontSize: '12px' }}>
+                    <span style={{ color: 'var(--text-3)' }}>Tipo documento: </span>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 500,
+                      background: ordenData.tipo_documento === 'factura' ? 'var(--warning-bg)' : 'var(--info-bg)',
+                      color: ordenData.tipo_documento === 'factura' ? 'var(--warning)' : 'var(--info)',
+                    }}>
+                      {ordenData.tipo_documento === 'factura' ? '📄 Factura' : '🧾 Boleta'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Cliente */}
               <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Cliente</div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', marginBottom: '4px' }}>{orden.cliente || 'Cliente Generico'}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-3)' }}>RUT: 66.666.666-6 · Giro: Sin Giro · Comuna: Santiago</div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', marginBottom: '4px' }}>
+                  {ordenData?.cliente_nombre || orden.cliente || 'Cliente Generico'}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-3)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  <span>RUT: <strong>{ordenData?.cliente_rut || '66.666.666-6'}</strong></span>
+                  {ordenData?.cliente_email && <span>Email: {ordenData.cliente_email}</span>}
+                </div>
+                {ordenData?.billing_direccion && (
+                  <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '4px' }}>
+                    {ordenData.billing_direccion}, {ordenData.billing_ciudad}
+                    {ordenData.billing_comuna && ` · Comuna: ${ordenData.billing_comuna}`}
+                  </div>
+                )}
               </div>
+
+              {/* Datos factura si aplica */}
+              {ordenData?.tipo_documento === 'factura' && ordenData?.factura_rut && (
+                <div style={{ background: 'var(--warning-bg)', border: '0.5px solid var(--warning)', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Datos Factura</div>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', marginBottom: '4px' }}>{ordenData.factura_razon_social}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-3)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <span>RUT: <strong>{ordenData.factura_rut}</strong></span>
+                    {ordenData.factura_giro && <span>Giro: {ordenData.factura_giro}</span>}
+                    {ordenData.factura_email && <span>Email: {ordenData.factura_email}</span>}
+                  </div>
+                  {ordenData.factura_direccion && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '4px' }}>
+                      {ordenData.factura_direccion}, {ordenData.factura_ciudad}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Productos */}
               <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -904,12 +961,12 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
                 </div>
                 {items.length === 0 ? (
                   <div style={{ padding: '12px', fontSize: '13px', color: 'var(--text-3)' }}>
-                    Sin productos detallados · Total: ${total.toLocaleString('es-CL')}
+                    Sin productos detallados
                   </div>
                 ) : items.map((item: any, i: number) => {
                   const nombre = item.nombre || item.name || item.Name || 'Producto'
-                  const cantidad = item.cantidad || item.Quantity || 1
-                  const precio = item.precio || item.ItemPrice || item.basePrice || item.priceAfterDiscounts || 0
+                  const cantidad = Number(item.cantidad || item.Quantity || 1)
+                  const precio = Number(item.precio || item.priceAfterDiscounts || item.basePrice || item.ItemPrice || 0)
                   return (
                     <div key={i} style={{
                       padding: '10px 12px',
@@ -921,11 +978,24 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
                         <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>Cantidad: {cantidad}</div>
                       </div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
-                        ${Number(precio).toLocaleString('es-CL')}
+                        ${precio.toLocaleString('es-CL')}
                       </div>
                     </div>
                   )
                 })}
+                {costoDespacho > 0 && (
+                  <div style={{
+                    padding: '10px 12px',
+                    borderTop: '0.5px solid var(--border)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: 'var(--bg-3)',
+                  }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>🚚 Costo de despacho</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
+                      ${costoDespacho.toLocaleString('es-CL')}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Totales */}
@@ -981,15 +1051,12 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
                 <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-1)', marginTop: '8px' }}>Folio N° {resultado.folio}</div>
                 <div style={{ fontSize: '18px', color: 'var(--success)', marginTop: '4px' }}>Total: ${resultado.total?.toLocaleString('es-CL')}</div>
               </div>
-
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => window.open(resultado.url_boleta, '_blank')} style={{
                   flex: 1, padding: '10px', borderRadius: '8px',
                   border: '0.5px solid var(--info)', background: 'var(--info-bg)',
                   color: 'var(--info)', fontSize: '13px', cursor: 'pointer', fontWeight: 500,
-                }}>
-                  🔗 Ver boleta online
-                </button>
+                }}>🔗 Ver boleta online</button>
                 <button onClick={async () => {
                   const res = await api.get(`/boletas/${resultado.boleta_id}/pdf`, { responseType: 'blob' })
                   const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -1001,12 +1068,9 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
                   flex: 1, padding: '10px', borderRadius: '8px',
                   border: '0.5px solid var(--border)', background: 'var(--bg)',
                   color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer', fontWeight: 500,
-                }}>
-                  ⬇️ Descargar PDF
-                </button>
+                }}>⬇️ Descargar PDF</button>
               </div>
             </div>
-
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={onClose} style={{
                 padding: '10px 20px', borderRadius: '8px', border: '0.5px solid var(--border)',
