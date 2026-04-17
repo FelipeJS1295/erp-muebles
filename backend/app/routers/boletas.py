@@ -105,7 +105,9 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
 
         # Fecha de la orden
         fecha_boleta = None
-        if orden.fecha_marketplace:
+        if orden.fecha_despacho:
+            fecha_boleta = orden.fecha_despacho[:10]
+        elif orden.fecha_marketplace:
             fecha_boleta = orden.fecha_marketplace.strftime("%Y-%m-%d")
 
         # Emitir en Nubox
