@@ -30,7 +30,7 @@ function getEstadoUnificado(orden: any): string {
       'Created', 'Acknowledged',
       'ready_to_ship', 'awaiting_fulfillment',
       'pending', 'pending_by_seller',
-      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT'
+      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT','printed_label'
     ]
     if (d < hoy && activos.includes(orden.estado)) return 'Atrasada'
   }
@@ -44,7 +44,7 @@ function getEstadoUnificado(orden: any): string {
     'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
     'SHIPPING': 'Nueva', 'TO_COLLECT': 'Nueva',
     'RECEIVED': 'Despachada', 'CLOSED': 'Despachada',
-    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada',
+    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada','printed_label': 'Nueva',
   }
   return mapa[orden.estado] || orden.estado
 }
