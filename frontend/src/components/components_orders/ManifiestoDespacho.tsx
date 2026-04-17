@@ -9,7 +9,6 @@ interface Orden {
   fecha_despacho: string | null
   fecha_llegada: string | null
   items: any[]
-  boleta_folio?: number
 }
 
 interface Props {
@@ -115,7 +114,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.fecha_despacho}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.fecha_llegada || '—'}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${diasLabel}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.boleta_folio ? `Folio ${o.boleta_folio}` : '—'}</td>
         </tr>
       `
     }).join('')
@@ -163,7 +161,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
               <th style="text-align:center">F. Despacho</th>
               <th style="text-align:center">F. Entrega</th>
               <th style="text-align:center">Estado</th>
-              <th style="text-align:center">Boleta</th>
             </tr>
           </thead>
           <tbody>${filas}</tbody>
