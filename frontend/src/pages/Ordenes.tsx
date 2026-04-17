@@ -3,6 +3,7 @@ import { dbApi, marketplaceApi, api } from '../api/client'
 import VistaMaestra from '../components/components_orders/VistaMaestra'
 import ModalEmitirBoleta from '../components/components_orders/ModalEmitirBoleta'
 import OrdenModal from '../components/components_orders/OrdenModal'
+import ManifiestoDespacho from '../components/components_orders/ManifiestoDespacho'
 
 // =============================================================================
 // Tipos
@@ -175,6 +176,7 @@ export default function Ordenes() {
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<Orden | null>(null)
   const [mostrarMaestra, setMostrarMaestra] = useState(false)
   const [ordenParaBoleta, setOrdenParaBoleta] = useState<Orden | null>(null)
+  const [mostrarManifiesto, setMostrarManifiesto] = useState(false)
 
   const cargar = async () => {
     try {
@@ -254,6 +256,7 @@ export default function Ordenes() {
   <div style={{ animation: 'fadeIn 0.2s ease' }}>
     {ordenSeleccionada && <OrdenModal orden={ordenSeleccionada} onClose={() => setOrdenSeleccionada(null)} />}
     {mostrarMaestra && <VistaMaestra ordenes={ordenes} onClose={() => setMostrarMaestra(false)} />}
+    {mostrarManifiesto && <ManifiestoDespacho ordenes={ordenes} onClose={() => setMostrarManifiesto(false)} />}
     {ordenParaBoleta && (
       <ModalEmitirBoleta
         orden={ordenParaBoleta}
@@ -285,6 +288,15 @@ export default function Ordenes() {
               <path d="M9 5.5A3.5 3.5 0 1 1 5.5 2"/><path d="M9 2v3.5H5.5"/>
             </svg>
             {syncing ? 'Sincronizando...' : 'Sincronizar'}
+          </button>
+                    <button onClick={() => setMostrarManifiesto(true)} style={{
+            ...IS, display: 'flex', alignItems: 'center', gap: '6px',
+            background: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 500,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <path d="M2 2h8v8H2zM4 5h4M4 7h2"/>
+            </svg>
+            Manifiesto
           </button>
           <button onClick={() => setMostrarMaestra(true)} style={{
             ...IS, display: 'flex', alignItems: 'center', gap: '6px',
