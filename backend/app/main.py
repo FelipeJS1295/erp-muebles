@@ -388,11 +388,16 @@ async def sincronizar_ordenes_paris(
             if existente:
                 existente.estado_marketplace = estado_nombre
                 existente.fecha_actualizacion = datetime.utcnow()
+                orden_obj = existente
                 actualizadas += 1
+                await db.flush()   # ← esta línea
             else:
-                estado = o.get("estado", {})
-                estado_nombre = estado.get("name") if isinstance(estado, dict) else estado
                 raw = o.get("raw", {})
+                nueva = Orden(...)
+                db.add(nueva)
+                await db.flush()
+                orden_obj = nueva
+                guardadas += 1
 
                 nueva = Orden(
                     marketplace=MarketplaceEnum.paris,
