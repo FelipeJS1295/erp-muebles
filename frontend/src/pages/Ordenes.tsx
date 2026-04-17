@@ -47,7 +47,7 @@ function getEstadoUnificado(orden: any): string {
     const activos = [
       'Created', 'Acknowledged',
       'ready_to_ship', 'awaiting_fulfillment',
-      'pending',
+      'pending', 'pending_by_seller',
       'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT'
     ]
     if (fecha < hoy && activos.includes(orden.estado)) return 'Atrasada'
