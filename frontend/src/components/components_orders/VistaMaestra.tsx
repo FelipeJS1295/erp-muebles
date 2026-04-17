@@ -26,7 +26,12 @@ function getEstadoUnificado(orden: any): string {
   const hoy = getHoy()
   if (orden.fecha_despacho) {
     const d = parseFecha(orden.fecha_despacho)
-    const activos = ['Created', 'Acknowledged', 'ready_to_ship', 'awaiting_fulfillment', 'pending', 'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT']
+        const activos = [
+      'Created', 'Acknowledged',
+      'ready_to_ship', 'awaiting_fulfillment',
+      'pending', 'pending_by_seller',
+      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT'
+    ]
     if (d < hoy && activos.includes(orden.estado)) return 'Atrasada'
   }
   const mapa: Record<string, string> = {
@@ -34,7 +39,7 @@ function getEstadoUnificado(orden: any): string {
     'Shipped': 'Despachada', 'Cancelled': 'Cancelada',
     'ready_to_ship': 'Nueva', 'awaiting_fulfillment': 'Nueva',
     'delivery_in_progress': 'Despachada', 'delivered': 'Despachada',
-    'deleted': 'Cancelada',
+    'deleted': 'Cancelada', 'pending_by_seller': 'Nueva',
     'pending': 'Nueva', 'shipped': 'Despachada', 'canceled': 'Cancelada',
     'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
     'SHIPPING': 'Nueva', 'TO_COLLECT': 'Nueva',
