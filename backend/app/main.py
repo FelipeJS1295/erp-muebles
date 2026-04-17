@@ -823,6 +823,7 @@ async def sincronizar_ordenes_paris(
                 existente.fecha_actualizacion = datetime.utcnow()
                 orden_obj = existente
                 actualizadas += 1
+                await db.flush()
             else:
                 raw = o.get("raw", {})
                 nueva = Orden(
