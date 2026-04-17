@@ -162,3 +162,20 @@ async def descargar_pdf(boleta_id: int, db: AsyncSession = Depends(get_db)):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@router.get("/{orden_id}/pdf-view")
+async def ver_pdf(orden_id: int, db: AsyncSession = Depends(get_db)):
+    """Muestra el PDF de la boleta en el navegador."""
+    try:
+        result = await db.execute(select(Boleta).where(Boleta.orden_id == orden_id))
+        boleta = result.scalar_one_or_none()
+        if not boleta:
+            raise HTTPException(status_code=404, detail="Boleta no encontrada")
+        pdf = await obtener_pdf_boleta(boleta.folio)
+        return Response(
+            content=pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={boleta.orden_id_marketplace}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

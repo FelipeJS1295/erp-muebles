@@ -1400,11 +1400,13 @@ export default function Ordenes() {
                           }}>Ver</button>
                           {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && (
                             o.boleta_folio ? (
-                              <button onClick={() => window.open(o.boleta_url!, '_blank')} style={{
-                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
-                                border: '0.5px solid var(--info)', background: 'var(--info-bg)',
-                                color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
-                              }}>📄 Folio {o.boleta_folio}</button>
+                          <button onClick={() => {
+                              window.open(`/api/v1/boletas/${o.id}/pdf-view`, '_blank')
+                            }} style={{
+                              fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                              border: '0.5px solid var(--info)', background: 'var(--info-bg)',
+                              color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
+                            }}>📄 Folio {o.boleta_folio}</button>
                             ) : (
                               <button onClick={() => setOrdenParaBoleta(o)} style={{
                                 fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
