@@ -25,6 +25,8 @@ interface Orden {
   raw: any
   fecha_creacion: string | null
   fecha_actualizacion: string | null
+  boleta_folio?: number
+  boleta_url?: string
 }
 
 // =============================================================================
@@ -1397,11 +1399,19 @@ export default function Ordenes() {
                             color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap',
                           }}>Ver</button>
                           {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && (
-                            <button onClick={() => setOrdenParaBoleta(o)} style={{
-                              fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
-                              border: '0.5px solid var(--success)', background: 'var(--success-bg)',
-                              color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap',
-                            }}>Boleta</button>
+                            o.boleta_folio ? (
+                              <button onClick={() => window.open(o.boleta_url!, '_blank')} style={{
+                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                border: '0.5px solid var(--info)', background: 'var(--info-bg)',
+                                color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}>📄 Folio {o.boleta_folio}</button>
+                            ) : (
+                              <button onClick={() => setOrdenParaBoleta(o)} style={{
+                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                border: '0.5px solid var(--success)', background: 'var(--success-bg)',
+                                color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}>Boleta</button>
+                            )
                           )}
                           {['Nueva', 'Atrasada'].includes(estadoERP) && (
                             <button style={{

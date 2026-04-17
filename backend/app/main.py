@@ -371,16 +371,25 @@ async def listar_ordenes(
 ):
     """Lista todas las órdenes guardadas en la BD."""
     try:
-        query = select(Orden).order_by(Orden.fecha_creacion.desc())
+        from app.models.boleta import Boleta
 
+        query = select(Orden).order_by(Orden.fecha_creacion.desc())
         if marketplace:
             query = query.where(Orden.marketplace == marketplace)
         if estado:
             query = query.where(Orden.estado_marketplace == estado)
-
         query = query.limit(limit).offset(offset)
         result = await db.execute(query)
         ordenes = result.scalars().all()
+
+        # Cargar folios de boletas
+        result_boletas = await db.execute(
+            select(Boleta.orden_id, Boleta.folio, Boleta.url_boleta)
+        )
+        boletas_map = {
+            row.orden_id: {"folio": row.folio, "url": row.url_boleta}
+            for row in result_boletas
+        }
 
         return {
             "total": len(ordenes),
@@ -401,6 +410,8 @@ async def listar_ordenes(
                     "raw": o.raw,
                     "fecha_creacion": o.fecha_creacion.isoformat() if o.fecha_creacion else None,
                     "fecha_actualizacion": o.fecha_actualizacion.isoformat() if o.fecha_actualizacion else None,
+                    "boleta_folio": boletas_map.get(o.id, {}).get("folio"),
+                    "boleta_url": boletas_map.get(o.id, {}).get("url"),
                 }
                 for o in ordenes
             ],
