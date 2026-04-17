@@ -1062,7 +1062,7 @@ function ModalEmitirBoleta({ orden, onClose, onEmitida }: {
                   const url = window.URL.createObjectURL(new Blob([res.data]))
                   const a = document.createElement('a')
                   a.href = url
-                  a.download = `boleta_${resultado.folio}.pdf`
+                  a.download = `${orden.orden_id}.pdf`
                   a.click()
                 }} style={{
                   flex: 1, padding: '10px', borderRadius: '8px',

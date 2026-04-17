@@ -52,32 +52,52 @@ async def listar_boletas(
 
 @router.post("/emitir/{orden_id}")
 async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db)):
-    """Emite una boleta para una orden específica."""
     try:
-        # Obtener la orden
         orden = await db.get(Orden, orden_id)
         if not orden:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
 
         # Verificar que no tenga boleta ya
-        result = await db.execute(
-            select(Boleta).where(Boleta.orden_id == orden_id)
-        )
+        result = await db.execute(select(Boleta).where(Boleta.orden_id == orden_id))
         existente = result.scalar_one_or_none()
         if existente:
             raise HTTPException(status_code=400, detail=f"Esta orden ya tiene boleta folio {existente.folio}")
 
-        # Armar productos desde los items de la orden
+        # Obtener datos extendidos de la orden
+        from app.models.sub_orden_data import SubOrdenData
+        result_sod = await db.execute(
+            select(SubOrdenData).where(SubOrdenData.orden_id == orden_id)
+        )
+        sod = result_sod.scalar_one_or_none()
+
+        # Datos del cliente
+        rut_cliente = (sod.cliente_rut if sod else None) or "66666666-6"
+        nombre_cliente = (sod.cliente_nombre if sod else None) or orden.cliente_nombre or "Cliente Generico"
+        comuna_cliente = (sod.billing_comuna if sod else None) or "Santiago"
+        direccion_cliente = (sod.billing_direccion if sod else None) or "Sin Direccion"
+        ciudad_cliente = (sod.billing_ciudad if sod else None) or "Santiago"
+
+        # Armar productos desde los items
         items = orden.items or []
         productos = []
         for item in items:
             nombre = item.get("nombre") or item.get("name") or item.get("Name") or "Producto"
-            cantidad = item.get("cantidad") or item.get("Quantity") or 1
-            precio = item.get("precio") or item.get("ItemPrice") or item.get("basePrice") or orden.total or 0
+            cantidad = int(item.get("cantidad") or item.get("Quantity") or 1)
+            precio = int(float(
+                item.get("precio") or
+                item.get("priceAfterDiscounts") or
+                item.get("basePrice") or
+                item.get("ItemPrice") or 0
+            ))
+            if precio > 0:
+                productos.append({"nombre": nombre, "cantidad": cantidad, "valor": precio})
+
+        # Agregar costo despacho como producto si existe
+        if sod and sod.costo_despacho and sod.costo_despacho > 0:
             productos.append({
-                "nombre": nombre,
-                "cantidad": int(cantidad),
-                "valor": int(float(precio)),
+                "nombre": "Costo de despacho",
+                "cantidad": 1,
+                "valor": int(sod.costo_despacho)
             })
 
         if not productos:
@@ -85,11 +105,11 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
 
         # Emitir en Nubox
         resultado = await emitir_boleta(
-            rut_cliente="66666666-6",
-            nombre_cliente=orden.cliente_nombre or "Cliente Generico",
+            rut_cliente=rut_cliente,
+            nombre_cliente=nombre_cliente,
             giro_cliente="Sin Giro",
-            comuna_cliente="Santiago",
-            direccion_cliente="Sin Direccion",
+            comuna_cliente=comuna_cliente,
+            direccion_cliente=f"{direccion_cliente}, {ciudad_cliente}",
             productos=productos,
         )
 
@@ -99,8 +119,8 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
             marketplace=str(orden.marketplace.value) if orden.marketplace else None,
             orden_id_marketplace=orden.orden_id_marketplace,
             folio=resultado["folio"],
-            rut_cliente="66666666-6",
-            nombre_cliente=orden.cliente_nombre,
+            rut_cliente=rut_cliente,
+            nombre_cliente=nombre_cliente,
             total=resultado["total"],
             monto_neto=resultado["monto_neto"],
             iva=resultado["iva"],
@@ -127,16 +147,16 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
 
 @router.get("/{boleta_id}/pdf")
 async def descargar_pdf(boleta_id: int, db: AsyncSession = Depends(get_db)):
-    """Descarga el PDF de una boleta."""
     try:
         boleta = await db.get(Boleta, boleta_id)
         if not boleta:
             raise HTTPException(status_code=404, detail="Boleta no encontrada")
         pdf = await obtener_pdf_boleta(boleta.folio)
+        nombre_archivo = f"{boleta.orden_id_marketplace or boleta.folio}.pdf"
         return Response(
             content=pdf,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=boleta_{boleta.folio}.pdf"}
+            headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
