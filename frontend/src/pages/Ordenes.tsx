@@ -187,7 +187,22 @@ export default function Ordenes() {
   const sincronizar = async () => {
     try {
       setSyncing(true)
-      await Promise.all([dbApi.syncWalmart(), dbApi.syncParis(), dbApi.syncFalabella(), dbApi.syncRipley()])
+      
+      // Sync marketplaces propios
+      await Promise.all([
+        dbApi.syncWalmart(),
+        dbApi.syncParis(),
+        dbApi.syncFalabella(),
+        dbApi.syncRipley()
+      ])
+
+      // Sync APIs de clientes externos
+      const resApis = await api.get('/api-clientes')
+      const apis = resApis.data.apis || []
+      await Promise.all(apis.map((a: any) => 
+        api.post(`/api-clientes/${a.id}/sync`).catch(e => console.warn(`Error sync cliente ${a.id}:`, e))
+      ))
+
       await cargar()
     } catch (e) { console.error(e) }
     finally { setSyncing(false) }
