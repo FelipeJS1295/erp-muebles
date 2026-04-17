@@ -25,6 +25,7 @@ interface Orden {
   raw: any
   fecha_creacion: string | null
   fecha_actualizacion: string | null
+  tipo_documento?: string
   boleta_folio?: number
   boleta_url?: string
 }
@@ -424,18 +425,6 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
     )
   })
   const totalGeneral = Object.values(totalesFecha).reduce((a, b) => a + b, 0)
-
-  const getDescripcionEsqueleto = (sku: string) => {
-    if (!sku) return null
-    const skuUpper = sku.toUpperCase()
-    const skuPadre = skuUpper.split('-')[0]
-    const producto = productosInternos.find(p =>
-      p.sku?.toUpperCase() === skuUpper ||
-      p.sku_padre?.toUpperCase() === skuPadre ||
-      p.sku_padre?.toUpperCase() === skuUpper
-    )
-    return producto?.descripcion_esqueleto || null
-  }
 
 const imprimirMaestra = (esEsqueletos: boolean) => {
   const ventana = window.open('', '_blank')
@@ -1400,13 +1389,18 @@ export default function Ordenes() {
                           }}>Ver</button>
                           {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && (
                             o.boleta_folio ? (
-                          <button onClick={() => {
-                              window.open(`/api/v1/boletas/${o.id}/pdf-view`, '_blank')
-                            }} style={{
-                              fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
-                              border: '0.5px solid var(--info)', background: 'var(--info-bg)',
-                              color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
-                            }}>📄 Folio {o.boleta_folio}</button>
+                              <button onClick={() => window.open(`/api/v1/boletas/${o.id}/pdf-view`, '_blank')} style={{
+                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                border: '0.5px solid var(--info)', background: 'var(--info-bg)',
+                                color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}>📄 Folio {o.boleta_folio}</button>
+                            ) : o.tipo_documento === 'factura' ? (
+                              <button disabled style={{
+                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                border: '0.5px solid var(--warning)', background: 'var(--warning-bg)',
+                                color: 'var(--warning)', cursor: 'not-allowed', whiteSpace: 'nowrap',
+                                opacity: 0.7,
+                              }}>🧾 Facturar</button>
                             ) : (
                               <button onClick={() => setOrdenParaBoleta(o)} style={{
                                 fontSize: '11px', padding: '5px 10px', borderRadius: '5px',

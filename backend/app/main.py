@@ -412,6 +412,11 @@ async def listar_ordenes(
                     "fecha_actualizacion": o.fecha_actualizacion.isoformat() if o.fecha_actualizacion else None,
                     "boleta_folio": boletas_map.get(o.id, {}).get("folio"),
                     "boleta_url": boletas_map.get(o.id, {}).get("url"),
+                    "tipo_documento": (
+                        (o.raw or {}).get("tipo_documento") or
+                        (o.raw or {}).get("order", {}).get("originInvoiceType") or
+                        "boleta"
+                    ),
                 }
                 for o in ordenes
             ],
