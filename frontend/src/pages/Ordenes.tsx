@@ -38,37 +38,32 @@ interface Orden {
 // =============================================================================
 
 function getEstadoUnificado(orden: any): string {
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
+  const now = new Date()
+  const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   if (orden.fecha_despacho) {
-    const d = new Date(orden.fecha_despacho)
-    d.setHours(0, 0, 0, 0)
-    const activos = ['Created', 'Acknowledged', 'ready_to_ship', 'awaiting_fulfillment', 'pending']
-    if (d < hoy && activos.includes(orden.estado)) return 'Atrasada'
+    const [y, m, d] = orden.fecha_despacho.split('-').map(Number)
+    const fecha = new Date(y, m - 1, d)
+    const activos = [
+      'Created', 'Acknowledged',
+      'ready_to_ship', 'awaiting_fulfillment',
+      'pending',
+      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT'
+    ]
+    if (fecha < hoy && activos.includes(orden.estado)) return 'Atrasada'
   }
 
   const mapa: Record<string, string> = {
-    // Walmart
     'Created': 'Nueva', 'Acknowledged': 'Nueva',
     'Shipped': 'Despachada', 'Cancelled': 'Cancelada',
-    // Paris
     'ready_to_ship': 'Nueva', 'awaiting_fulfillment': 'Nueva',
     'delivery_in_progress': 'Despachada', 'delivered': 'Despachada',
     'deleted': 'Cancelada', 'pending_by_seller': 'Nueva',
-    // Falabella
-    'pending': 'Nueva',
-    'shipped': 'Despachada',
-    'canceled': 'Cancelada',
-    // Ripley
-    'WAITING_ACCEPTANCE': 'Nueva',
-    'WAITING_DEBIT': 'Nueva',
-    'SHIPPING': 'Nueva',
-    'TO_COLLECT': 'Nueva',
-    'RECEIVED': 'Despachada',
-    'CLOSED': 'Despachada',
-    'REFUSED': 'Cancelada',
-    'CANCELED': 'Cancelada',
+    'pending': 'Nueva', 'shipped': 'Despachada', 'canceled': 'Cancelada',
+    'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
+    'SHIPPING': 'Nueva', 'TO_COLLECT': 'Nueva',
+    'RECEIVED': 'Despachada', 'CLOSED': 'Despachada',
+    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada',
   }
 
   return mapa[orden.estado] || orden.estado
@@ -83,11 +78,13 @@ const estadoStyle: Record<string, { bg: string; color: string }> = {
 
 function fechaUrgencia(fecha: string | null, estado: string) {
   if (!fecha) return 'neutral'
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
-  const d = new Date(fecha); d.setHours(0, 0, 0, 0)
+  const now = new Date()
+  const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const [y, m, d] = fecha.split('-').map(Number)
+  const df = new Date(y, m - 1, d)
   const activos = ['Created', 'Acknowledged', 'ready_to_ship', 'awaiting_fulfillment']
-  if (d < hoy && activos.includes(estado)) return 'urgent'
-  const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+  if (df < hoy && activos.includes(estado)) return 'urgent'
+  const diff = Math.ceil((df.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
   if (diff <= 2) return 'soon'
   return 'ok'
 }
