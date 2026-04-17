@@ -89,72 +89,72 @@ class ParisMarketplaceService:
         if isinstance(ordenes_raw, dict):
             ordenes_raw = [ordenes_raw]
 
-    ordenes = []
-    for o in ordenes_raw:
-        orden_info = o.get("order", {})
-        order_id = orden_info.get("originOrderNumber")
+        ordenes = []
+        for o in ordenes_raw:
+            orden_info = o.get("order", {})
+            order_id = orden_info.get("originOrderNumber")
 
-        # Obtener datos completos de la orden padre
-        orden_padre = {}
-        if order_id:
-            orden_padre = await self.obtener_orden_padre(str(order_id))
+            # Obtener datos completos de la orden padre
+            orden_padre = {}
+            if order_id:
+                orden_padre = await self.obtener_orden_padre(str(order_id))
 
-        customer = orden_padre.get("customer", orden_info.get("customer", {}))
-        billing = orden_padre.get("billingAddress", {})
-        shipping_raw = {}
-        business = orden_padre.get("businessInvoice") or {}
-        tipo_doc = orden_padre.get("originInvoiceType") or orden_info.get("originInvoiceType", "boleta")
+            customer = orden_padre.get("customer", orden_info.get("customer", {}))
+            billing = orden_padre.get("billingAddress", {})
+            shipping_raw = {}
+            business = orden_padre.get("businessInvoice") or {}
+            tipo_doc = orden_padre.get("originInvoiceType") or orden_info.get("originInvoiceType", "boleta")
 
-        # Costo despacho viene en subOrders[0].cost de la orden padre
-        sub_orders = orden_padre.get("subOrders", [])
-        costo_despacho = 0.0
-        if sub_orders:
-            try:
-                costo_despacho = float(sub_orders[0].get("cost") or 0)
-            except:
-                costo_despacho = 0.0
-        
-        # Shipping desde subOrders
-        if sub_orders:
-            shipping_raw = sub_orders[0].get("shippingAddress", {})
+            # Costo despacho viene en subOrders[0].cost de la orden padre
+            sub_orders = orden_padre.get("subOrders", [])
+            costo_despacho = 0.0
+            if sub_orders:
+                try:
+                    costo_despacho = float(sub_orders[0].get("cost") or 0)
+                except:
+                    costo_despacho = 0.0
+            
+            # Shipping desde subOrders
+            if sub_orders:
+                shipping_raw = sub_orders[0].get("shippingAddress", {})
 
-        ordenes.append({
-            "sub_orden_id": o.get("subOrderNumber") or o.get("id"),
-            "orden_padre_id": order_id,
-            "estado": o.get("status") or o.get("state"),
-            "fecha_creacion": o.get("createdAt"),
-            "fecha_actualizacion": o.get("updatedAt"),
-            "carrier": o.get("carrier"),
-            "label_url": o.get("labelUrl"),
-            "fecha_despacho": o.get("dispatchDate"),
-            "fecha_llegada": o.get("arrivalDate"),
-            "cliente": customer.get("name"),
-            "items": o.get("items", []),
-            "customer": {
-                "nombre": customer.get("name"),
-                "email": customer.get("email"),
-                "rut": customer.get("documentNumber"),
-                "tipo_documento": customer.get("documentType"),
-            },
-            "billing": {
-                "nombre": f"{billing.get('firstName', '')} {billing.get('lastName', '')}".strip(),
-                "direccion": f"{billing.get('address1', '')} {billing.get('address2', '')}".strip(),
-                "ciudad": billing.get("city"),
-                "comuna": billing.get("communaCode"),
-                "telefono": billing.get("phone"),
-            },
-            "shipping": {
-                "nombre": f"{shipping_raw.get('firstName', '')} {shipping_raw.get('lastName', '')}".strip(),
-                "direccion": f"{shipping_raw.get('address1', '')} {shipping_raw.get('address2', '')}".strip(),
-                "ciudad": shipping_raw.get("city"),
-                "comuna": shipping_raw.get("communaCode"),
-                "telefono": shipping_raw.get("phone"),
-            },
-            "costo_despacho": costo_despacho,
-            "tipo_documento": tipo_doc,
-            "business_invoice": business,
-            "raw": o,
-        })
+            ordenes.append({
+                "sub_orden_id": o.get("subOrderNumber") or o.get("id"),
+                "orden_padre_id": order_id,
+                "estado": o.get("status") or o.get("state"),
+                "fecha_creacion": o.get("createdAt"),
+                "fecha_actualizacion": o.get("updatedAt"),
+                "carrier": o.get("carrier"),
+                "label_url": o.get("labelUrl"),
+                "fecha_despacho": o.get("dispatchDate"),
+                "fecha_llegada": o.get("arrivalDate"),
+                "cliente": customer.get("name"),
+                "items": o.get("items", []),
+                "customer": {
+                    "nombre": customer.get("name"),
+                    "email": customer.get("email"),
+                    "rut": customer.get("documentNumber"),
+                    "tipo_documento": customer.get("documentType"),
+                },
+                "billing": {
+                    "nombre": f"{billing.get('firstName', '')} {billing.get('lastName', '')}".strip(),
+                    "direccion": f"{billing.get('address1', '')} {billing.get('address2', '')}".strip(),
+                    "ciudad": billing.get("city"),
+                    "comuna": billing.get("communaCode"),
+                    "telefono": billing.get("phone"),
+                },
+                "shipping": {
+                    "nombre": f"{shipping_raw.get('firstName', '')} {shipping_raw.get('lastName', '')}".strip(),
+                    "direccion": f"{shipping_raw.get('address1', '')} {shipping_raw.get('address2', '')}".strip(),
+                    "ciudad": shipping_raw.get("city"),
+                    "comuna": shipping_raw.get("communaCode"),
+                    "telefono": shipping_raw.get("phone"),
+                },
+                "costo_despacho": costo_despacho,
+                "tipo_documento": tipo_doc,
+                "business_invoice": business,
+                "raw": o,
+            })
 
         return {
             "marketplace": "paris_chile",
