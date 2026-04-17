@@ -103,6 +103,11 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
         if not productos:
             productos = [{"nombre": "Venta marketplace", "cantidad": 1, "valor": int(orden.total or 0)}]
 
+        # Fecha de la orden
+        fecha_boleta = None
+        if orden.fecha_marketplace:
+            fecha_boleta = orden.fecha_marketplace.strftime("%Y-%m-%d")
+
         # Emitir en Nubox
         resultado = await emitir_boleta(
             rut_cliente=rut_cliente,
@@ -111,6 +116,7 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
             comuna_cliente=comuna_cliente,
             direccion_cliente=f"{direccion_cliente}, {ciudad_cliente}",
             productos=productos,
+            fecha=fecha_boleta,
         )
 
         # Guardar boleta
@@ -147,22 +153,6 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
-@router.get("/{boleta_id}/pdf")
-async def descargar_pdf(boleta_id: int, db: AsyncSession = Depends(get_db)):
-    try:
-        boleta = await db.get(Boleta, boleta_id)
-        if not boleta:
-            raise HTTPException(status_code=404, detail="Boleta no encontrada")
-        pdf = await obtener_pdf_boleta(boleta.folio)
-        nombre_archivo = f"{boleta.orden_id_marketplace or boleta.folio}.pdf"
-        return Response(
-            content=pdf,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
 @router.get("/{orden_id}/pdf-view")
 async def ver_pdf(orden_id: int, db: AsyncSession = Depends(get_db)):
     """Muestra el PDF de la boleta en el navegador."""
@@ -176,6 +166,24 @@ async def ver_pdf(orden_id: int, db: AsyncSession = Depends(get_db)):
             content=pdf,
             media_type="application/pdf",
             headers={"Content-Disposition": f"inline; filename={boleta.orden_id_marketplace}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.get("/{boleta_id}/pdf")
+async def descargar_pdf(boleta_id: int, db: AsyncSession = Depends(get_db)):
+    """Descarga el PDF de una boleta."""
+    try:
+        boleta = await db.get(Boleta, boleta_id)
+        if not boleta:
+            raise HTTPException(status_code=404, detail="Boleta no encontrada")
+        pdf = await obtener_pdf_boleta(boleta.folio)
+        nombre_archivo = f"{boleta.orden_id_marketplace or boleta.folio}.pdf"
+        return Response(
+            content=pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
