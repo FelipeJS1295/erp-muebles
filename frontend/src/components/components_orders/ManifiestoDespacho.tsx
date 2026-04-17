@@ -242,7 +242,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
                   <th style={{ ...TH, textAlign: 'center' as const }}>F. Despacho</th>
                   <th style={{ ...TH, textAlign: 'center' as const }}>F. Entrega</th>
                   <th style={{ ...TH, textAlign: 'center' as const }}>Estado</th>
-                  <th style={{ ...TH, textAlign: 'center' as const }}>Boleta</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,13 +281,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
                           <span style={{ padding: '3px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, background: 'var(--warning-bg)', color: 'var(--warning)' }}>
                             📦 Hoy
                           </span>
-                        )}
-                      </td>
-                      <td style={{ ...TD, textAlign: 'center' }}>
-                        {o.boleta_folio ? (
-                          <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 500 }}>✓ {o.boleta_folio}</span>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>—</span>
                         )}
                       </td>
                     </tr>
