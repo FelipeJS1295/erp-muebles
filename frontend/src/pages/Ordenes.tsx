@@ -408,9 +408,14 @@ function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => v
     return grupos
   }, [ordenesFiltradas, busqueda])
 
+  const parseFecha = (fecha: string) => {
+    const [y, m, d] = fecha.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }
+
   const getCellStyle = (fecha: string, valor: number): React.CSSProperties => {
     if (valor === 0) return { color: 'var(--text-4)', fontSize: '12px' }
-    const d = new Date(fecha); d.setHours(0, 0, 0, 0)
+    const d = parseFecha(fecha)
     const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
     if (diff < 0) return { color: 'var(--danger)', fontWeight: 700, fontSize: '13px' }
     if (diff <= 1) return { color: 'var(--warning)', fontWeight: 600, fontSize: '13px' }
@@ -602,7 +607,7 @@ const imprimirMaestra = (esEsqueletos: boolean) => {
           <tr>
             <th style="min-width:260px">${esEsqueletos ? 'Descripción Esqueleto' : 'Marketplace / Producto'}</th>
             ${fechas.map(f => {
-              const d = new Date(f); d.setHours(0, 0, 0, 0)
+              const d = parseFecha(f)
               const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
               const color = diff < 0 ? '#ef4444' : diff <= 1 ? '#f59e0b' : 'white'
               return `<th style="text-align:center;color:${color}">${f}<br><span style="font-size:9px;font-weight:400">${diff < 0 ? '⚠ Atrasada' : diff === 0 ? 'Hoy' : d.toLocaleDateString('es-CL',{weekday:'short'})}</span></th>`
