@@ -83,7 +83,7 @@ async def emitir_boleta(
             json={"productos": productos_nubox, "documentoReferenciado": {}},
         )
         print(f"📄 Nubox status: {resp.status_code}")
-        print(f"📄 Nubox response: {resp.text[:500]}")
+        print(f"📄 Nubox response: {resp.text[:2000]}")
         resp.raise_for_status()
         data = resp.json()
 
