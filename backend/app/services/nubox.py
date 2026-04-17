@@ -33,6 +33,17 @@ async def obtener_token() -> str:
             raise Exception("No se obtuvo token de Nubox")
         return token.strip()
 
+def formatear_rut(rut: str) -> str:
+    """Formatea RUT al formato xxxxxxxx-x requerido por Nubox."""
+    if not rut:
+        return "66666666-6"
+    rut = rut.strip().upper().replace(".", "")
+    # Si ya tiene guión está bien
+    if "-" in rut:
+        return rut
+    # Agregar guión antes del último caracter
+    return f"{rut[:-1]}-{rut[-1]}"
+
 
 async def emitir_boleta(
     rut_cliente: str,
@@ -57,7 +68,7 @@ async def emitir_boleta(
         productos_nubox.append({
             "fechaEmision": fecha_iso,
             "folio": 1,
-            "rutContraparte": rut_cliente or "66666666-6",
+            "rutContraparte": formatear_rut(rut_cliente) or "66666666-6",
             "razonSocialContraparte": nombre_cliente or "Cliente Generico",
             "giroContraparte": giro_cliente or "Sin Giro",
             "comunaContraparte": comuna_cliente or "Santiago",
