@@ -776,3 +776,156 @@ async def sync_ripley(db: AsyncSession = Depends(get_db)):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error sync Ripley: {str(e)}")
+
+@app.post("/api/v1/ordenes/sync/paris", tags=["Base de Datos"])
+async def sincronizar_ordenes_paris(
+    limit: int = 500,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.sub_orden_data import SubOrdenData
+    try:
+        data = await paris_service.obtener_ordenes(limit=limit)
+        ordenes = data.get("ordenes", [])
+        guardadas = 0
+        actualizadas = 0
+
+        for o in ordenes:
+            result = await db.execute(
+                select(Orden).where(
+                    Orden.orden_id_marketplace == str(o["sub_orden_id"]),
+                    Orden.marketplace == MarketplaceEnum.paris,
+                )
+            )
+            existente = result.scalar_one_or_none()
+
+            estado = o.get("estado", {})
+            estado_nombre = estado.get("name") if isinstance(estado, dict) else estado
+
+            items_data = o.get("items", [])
+            subtotal = sum(
+                float(item.get("priceAfterDiscounts") or item.get("basePrice") or 0)
+                for item in items_data
+            )
+            costo_despacho = float(o.get("costo_despacho") or 0)
+            customer = o.get("customer", {})
+            billing = o.get("billing", {})
+            shipping = o.get("shipping", {})
+            business = o.get("business_invoice") or {}
+            tipo_doc = o.get("tipo_documento", "boleta")
+
+            if existente:
+                existente.estado_marketplace = estado_nombre
+                existente.fecha_actualizacion = datetime.utcnow()
+                orden_obj = existente
+                actualizadas += 1
+            else:
+                raw = o.get("raw", {})
+                nueva = Orden(
+                    marketplace=MarketplaceEnum.paris,
+                    orden_id_marketplace=str(o.get("sub_orden_id")),
+                    cliente_nombre=o.get("cliente"),
+                    estado_marketplace=estado_nombre,
+                    carrier=o.get("carrier"),
+                    label_url=o.get("label_url"),
+                    sub_orden_id=raw.get("labelId"),
+                    fecha_despacho=o.get("fecha_despacho"),
+                    fecha_llegada=o.get("fecha_llegada"),
+                    items=items_data,
+                    fecha_marketplace=datetime.utcnow(),
+                    raw=o,
+                )
+                db.add(nueva)
+                await db.flush()
+                orden_obj = nueva
+                guardadas += 1
+
+                for item in items_data:
+                    sku_seller = item.get("sellerSku", "").replace("-1","").replace("-2","")
+                    sku_paris = item.get("sku")
+                    nombre = item.get("name")
+                    if sku_seller:
+                        await auto_crear_producto_interno(sku_seller, nombre, 'paris', sku_paris, db)
+
+            # Guardar/actualizar sub_orden_data
+            result_sod = await db.execute(
+                select(SubOrdenData).where(
+                    SubOrdenData.orden_id_marketplace == str(o.get("sub_orden_id"))
+                )
+            )
+            sod = result_sod.scalar_one_or_none()
+
+            sod_data = dict(
+                orden_id=orden_obj.id,
+                orden_id_marketplace=str(o.get("sub_orden_id")),
+                marketplace="paris_chile",
+                cliente_nombre=customer.get("nombre"),
+                cliente_rut=customer.get("rut"),
+                cliente_email=customer.get("email"),
+                billing_direccion=billing.get("direccion"),
+                billing_ciudad=billing.get("ciudad"),
+                billing_comuna=billing.get("comuna"),
+                shipping_direccion=shipping.get("direccion"),
+                shipping_ciudad=shipping.get("ciudad"),
+                shipping_comuna=shipping.get("comuna"),
+                costo_despacho=costo_despacho,
+                subtotal_productos=subtotal,
+                total=subtotal + costo_despacho,
+                tipo_documento=tipo_doc,
+                factura_rut=business.get("rut") or business.get("documentNumber"),
+                factura_razon_social=business.get("razonSocial") or business.get("name"),
+                factura_giro=business.get("giro") or business.get("activity"),
+                factura_direccion=business.get("address") or business.get("direccion"),
+                factura_ciudad=business.get("city") or business.get("ciudad"),
+                factura_comuna=business.get("comuna") or business.get("communaCode"),
+                factura_email=business.get("email"),
+            )
+
+            if sod:
+                for k, v in sod_data.items():
+                    setattr(sod, k, v)
+            else:
+                db.add(SubOrdenData(**sod_data))
+
+        await db.commit()
+        return {
+            "mensaje": "Sync Paris completado",
+            "guardadas": guardadas,
+            "actualizadas": actualizadas,
+            "total_procesadas": len(ordenes),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error sync Paris: {str(e)}")
+
+@app.get("/api/v1/ordenes/{orden_id}/data", tags=["Base de Datos"])
+async def obtener_orden_data(orden_id: int, db: AsyncSession = Depends(get_db)):
+    from app.models.sub_orden_data import SubOrdenData
+    result = await db.execute(
+        select(SubOrdenData).where(SubOrdenData.orden_id == orden_id)
+    )
+    sod = result.scalar_one_or_none()
+    if not sod:
+        return {"data": None}
+    return {
+        "data": {
+            "cliente_nombre": sod.cliente_nombre,
+            "cliente_rut": sod.cliente_rut,
+            "cliente_email": sod.cliente_email,
+            "billing_direccion": sod.billing_direccion,
+            "billing_ciudad": sod.billing_ciudad,
+            "billing_comuna": sod.billing_comuna,
+            "shipping_direccion": sod.shipping_direccion,
+            "shipping_ciudad": sod.shipping_ciudad,
+            "shipping_comuna": sod.shipping_comuna,
+            "costo_despacho": sod.costo_despacho,
+            "subtotal_productos": sod.subtotal_productos,
+            "total": sod.total,
+            "tipo_documento": sod.tipo_documento,
+            "factura_rut": sod.factura_rut,
+            "factura_razon_social": sod.factura_razon_social,
+            "factura_giro": sod.factura_giro,
+            "factura_direccion": sod.factura_direccion,
+            "factura_ciudad": sod.factura_ciudad,
+            "factura_comuna": sod.factura_comuna,
+            "factura_email": sod.factura_email,
+        }
+    }
