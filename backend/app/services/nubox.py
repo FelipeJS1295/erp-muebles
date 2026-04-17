@@ -21,7 +21,7 @@ NUBOX_BASIC = base64.b64encode(
 
 async def obtener_token() -> str:
     """Obtiene token de autenticación de Nubox."""
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(
             NUBOX_AUTH_URL,
             headers={"Authorization": f"Basic {NUBOX_BASIC}"},
@@ -75,7 +75,7 @@ async def emitir_boleta(
             "fechaPeriodoHasta": fecha_iso,
         })
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         url = f"{NUBOX_BASE_URL}/factura/documento/{NUBOX_RUT_EMPRESA}/{NUBOX_NUMERO_SERIE}/{NUBOX_RUT_FUNCIONARIO}/1/39/dte/extendido"
         resp = await client.post(
             url,
@@ -100,7 +100,7 @@ async def emitir_boleta(
 async def obtener_pdf_boleta(folio: int) -> bytes:
     """Descarga el PDF de una boleta por folio."""
     token = await obtener_token()
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         url = f"{NUBOX_BASE_URL}/factura/documento/{NUBOX_RUT_EMPRESA}/{NUBOX_NUMERO_SERIE}/{folio}/BOL-EL/pdf"
         resp = await client.get(url, headers={"token": token})
         resp.raise_for_status()
