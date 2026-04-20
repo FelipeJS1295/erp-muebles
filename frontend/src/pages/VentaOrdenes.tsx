@@ -136,6 +136,7 @@ export default function VentaOrdenes() {
     const canceladasMes = useMemo(() =>
     ordenesMes.filter(o => {
         if (o.estado_unificado !== 'Cancelada') return false
+        if (o.marketplace === 'falabella') return false
         const items = o.items || []
         const tieneJamaroff = items.some((item: any) => {
         const nombre = (item.nombre || item.name || item.Name || item.descripcion || '').toLowerCase()
@@ -150,6 +151,7 @@ export default function VentaOrdenes() {
     const activasMes = useMemo(() =>
     ordenesMes.filter(o => {
         if (o.estado_unificado === 'Cancelada') return false
+        if (o.marketplace === 'falabella') return false
         const items = o.items || []
         const tieneJamaroff = items.some((item: any) => {
         const nombre = (item.nombre || item.name || item.Name || item.descripcion || '').toLowerCase()
