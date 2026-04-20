@@ -917,6 +917,8 @@ async def listar_gastos(
                     "tipo": g.tipo,
                     "descripcion": g.descripcion,
                     "monto": g.monto,
+                    "monto_pagado": g.monto_pagado or 0,
+                    "estado": g.estado or "pendiente",
                     "fecha_creacion": g.fecha_creacion.isoformat() if g.fecha_creacion else None,
                 }
                 for g in gastos
