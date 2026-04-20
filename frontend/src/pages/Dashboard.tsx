@@ -19,7 +19,7 @@ interface Stats {
     ventas_mes_anterior: number
     variacion_pct: number
   }
-  por_marketplace: { marketplace: string; ordenes: number; monto: number }[]
+  por_marketplace: { marketplace: string; ordenes: number; monto: number; pct: number }[]
   por_cliente: { cliente_id: number; cliente_nombre: string; marketplace: string; total_ordenes: number; monto_total: number }[]
   grafico: { dia: number; actual: number; anterior: number }[]
   top_productos: { nombre: string; sku: string; cantidad: number; monto: number }[]
@@ -251,15 +251,14 @@ export default function Dashboard() {
           {/* Por marketplace */}
           <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '4px' }}>Por marketplace</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '16px' }}>Órdenes totales en BD</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '16px' }}>Órdenes del mes actual</div>
             {loading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{[...Array(4)].map((_, i) => sk('40px', '100%'))}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {(stats?.por_marketplace ?? []).map(m => {
                   const cfg = MKT_CONFIG[m.marketplace] ?? { label: m.marketplace, color: 'var(--text-2)', bg: 'var(--bg-3)' }
-                  const totalOrdenes = stats?.kpis.total_ordenes ?? 1
-                  const pct = Math.round((m.ordenes / totalOrdenes) * 100)
+                  const pct = m.pct ?? 0
                   return (
                     <div key={m.marketplace}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>

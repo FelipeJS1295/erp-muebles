@@ -55,165 +55,169 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         inicio_mes_actual = date(hoy.year, hoy.month, 1)
         if hoy.month == 1:
             inicio_mes_anterior = date(hoy.year - 1, 12, 1)
-            fin_mes_anterior = date(hoy.year, 1, 1)
+            fin_mes_anterior    = date(hoy.year, 1, 1)
         else:
             inicio_mes_anterior = date(hoy.year, hoy.month - 1, 1)
-            fin_mes_anterior = date(hoy.year, hoy.month, 1)
+            fin_mes_anterior    = date(hoy.year, hoy.month, 1)
 
-        # Todas las ordenes
         result = await db.execute(select(Orden).order_by(Orden.fecha_creacion.desc()))
         todas = result.scalars().all()
 
-        # --- KPIs generales ---
-        atrasadas = []
-        nuevas = []
-        ordenes_hoy = []
-        por_marketplace: dict = {}
-        por_marketplace_monto: dict = {}
+        # Separar órdenes del mes actual
+        ordenes_mes_actual = [
+            o for o in todas
+            if o.fecha_creacion and o.fecha_creacion.date() >= inicio_mes_actual
+        ]
+        ordenes_mes_anterior = [
+            o for o in todas
+            if o.fecha_creacion and inicio_mes_anterior <= o.fecha_creacion.date() < fin_mes_anterior
+        ]
 
+        # --- KPIs ---
+        atrasadas, nuevas, ordenes_hoy = [], [], []
         for o in todas:
             estado = get_estado_unificado(o)
-            mkt = str(o.marketplace.value) if o.marketplace else 'otro'
+            if estado == 'Atrasada': atrasadas.append(o)
+            if estado == 'Nueva':    nuevas.append(o)
+            if o.fecha_creacion and o.fecha_creacion.date() == hoy:
+                ordenes_hoy.append(o)
 
-            # Por marketplace — conteo
+        # --- Por marketplace: SOLO ordenes del mes actual ---
+        por_marketplace: dict = {}
+        por_marketplace_monto: dict = {}
+        for o in ordenes_mes_actual:
+            mkt = str(o.marketplace.value) if o.marketplace else 'otro'
             if mkt not in por_marketplace:
                 por_marketplace[mkt] = 0
                 por_marketplace_monto[mkt] = 0
             por_marketplace[mkt] += 1
-            por_marketplace_monto[mkt] += float(o.total or 0)
+            # Para Paris usar sub_orden_data si total es 0
+            monto = float(o.total or 0)
+            por_marketplace_monto[mkt] += monto
 
-            if estado == 'Atrasada':
-                atrasadas.append(o)
-            if estado == 'Nueva':
-                nuevas.append(o)
-
-            # Órdenes de hoy
-            if o.fecha_creacion and o.fecha_creacion.date() == hoy:
-                ordenes_hoy.append(o)
-
-        # --- Ventas mes actual vs mes anterior ---
+        # --- Ventas mes actual vs anterior (solo no canceladas) ---
+        estados_validos = {'Nueva', 'Despachada', 'Atrasada'}
         ventas_mes_actual = sum(
-            float(o.total or 0) for o in todas
-            if o.fecha_creacion and o.fecha_creacion.date() >= inicio_mes_actual
+            float(o.total or 0) for o in ordenes_mes_actual
+            if get_estado_unificado(o) in estados_validos
         )
         ventas_mes_anterior = sum(
-            float(o.total or 0) for o in todas
-            if o.fecha_creacion and inicio_mes_anterior <= o.fecha_creacion.date() < fin_mes_anterior
+            float(o.total or 0) for o in ordenes_mes_anterior
+            if get_estado_unificado(o) in estados_validos
         )
 
-        # --- Gráfico: ventas por día mes actual vs mes anterior ---
-        dias_mes = (hoy - inicio_mes_actual).days + 1
-        grafico_actual = {}
-        grafico_anterior = {}
-
-        for o in todas:
-            if not o.fecha_creacion:
-                continue
-            fecha_ord = o.fecha_creacion.date()
-            monto = float(o.total or 0)
-
-            if fecha_ord >= inicio_mes_actual:
-                dia = fecha_ord.day
-                grafico_actual[dia] = grafico_actual.get(dia, 0) + monto
-
-            if inicio_mes_anterior <= fecha_ord < fin_mes_anterior:
-                dia = fecha_ord.day
-                grafico_anterior[dia] = grafico_anterior.get(dia, 0) + monto
+        # --- Gráfico ventas por día ---
+        grafico_actual: dict  = {}
+        grafico_anterior: dict = {}
+        for o in ordenes_mes_actual:
+            if o.fecha_creacion:
+                dia = o.fecha_creacion.date().day
+                grafico_actual[dia] = grafico_actual.get(dia, 0) + float(o.total or 0)
+        for o in ordenes_mes_anterior:
+            if o.fecha_creacion:
+                dia = o.fecha_creacion.date().day
+                grafico_anterior[dia] = grafico_anterior.get(dia, 0) + float(o.total or 0)
 
         grafico = []
-        max_dias = max(dias_mes, 28)
-        for dia in range(1, max_dias + 1):
+        for dia in range(1, 32):
             grafico.append({
                 "dia": dia,
-                "actual": round(grafico_actual.get(dia, 0)),
+                "actual":   round(grafico_actual.get(dia, 0)),
                 "anterior": round(grafico_anterior.get(dia, 0)),
             })
 
-        # --- Productos más vendidos ---
+        # --- Top productos (mes actual) ---
         productos_count: dict = {}
-        for o in todas:
-            items = o.items or []
-            for item in items:
+        for o in ordenes_mes_actual:
+            for item in (o.items or []):
                 nombre = (
                     item.get('nombre') or item.get('Name') or
-                    item.get('name') or item.get('descripcion') or
-                    item.get('producto_descripcion') or 'Sin nombre'
+                    item.get('name') or item.get('descripcion') or 'Sin nombre'
                 )
-                sku = (
-                    item.get('sku') or item.get('Sku') or
-                    item.get('sellerSku') or ''
-                )
+                sku = item.get('sku') or item.get('Sku') or item.get('sellerSku') or ''
                 key = sku or nombre
                 cantidad = int(item.get('cantidad') or item.get('Quantity') or 1)
-                monto = float(item.get('precio') or item.get('priceAfterDiscounts') or item.get('basePrice') or item.get('ItemPrice') or 0)
+                monto = float(
+                    item.get('precio') or item.get('priceAfterDiscounts') or
+                    item.get('basePrice') or item.get('ItemPrice') or 0
+                )
                 if key not in productos_count:
                     productos_count[key] = {'nombre': nombre, 'sku': sku, 'cantidad': 0, 'monto': 0}
                 productos_count[key]['cantidad'] += cantidad
-                productos_count[key]['monto'] += monto * cantidad
+                productos_count[key]['monto']    += monto * cantidad
 
         top_productos = sorted(productos_count.values(), key=lambda x: x['cantidad'], reverse=True)[:10]
 
-        # --- Ordenes por cliente API ---
+        # --- Por cliente API (mes actual) ---
         from app.models.api_cliente import ApiCliente
         result_apis = await db.execute(select(ApiCliente).where(ApiCliente.activo == 1))
         apis = result_apis.scalars().all()
-
-        por_cliente: list = []
-        for api in apis:
-            result_cli = await db.execute(select(ClienteVenta).where(ClienteVenta.id == api.cliente_id))
+        por_cliente = []
+        for api_obj in apis:
+            result_cli = await db.execute(select(ClienteVenta).where(ClienteVenta.id == api_obj.cliente_id))
             cliente = result_cli.scalar_one_or_none()
-            ordenes_cli = [o for o in todas if o.cliente_id == api.cliente_id]
-            por_cliente.append({
-                "cliente_id": api.cliente_id,
-                "cliente_nombre": cliente.nombre if cliente else f"Cliente {api.cliente_id}",
-                "marketplace": api.marketplace,
-                "total_ordenes": len(ordenes_cli),
-                "monto_total": round(sum(float(o.total or 0) for o in ordenes_cli), 2),
-            })
-
+            ordenes_cli = [o for o in ordenes_mes_actual if o.cliente_id == api_obj.cliente_id]
+            if ordenes_cli:
+                por_cliente.append({
+                    "cliente_id":    api_obj.cliente_id,
+                    "cliente_nombre": cliente.nombre if cliente else f"Cliente {api_obj.cliente_id}",
+                    "marketplace":   api_obj.marketplace,
+                    "total_ordenes": len(ordenes_cli),
+                    "monto_total":   round(sum(float(o.total or 0) for o in ordenes_cli), 2),
+                })
         por_cliente.sort(key=lambda x: x['total_ordenes'], reverse=True)
 
         variacion_pct = 0.0
         if ventas_mes_anterior > 0:
-            variacion_pct = round(((ventas_mes_actual - ventas_mes_anterior) / ventas_mes_anterior) * 100, 1)
+            variacion_pct = round(
+                ((ventas_mes_actual - ventas_mes_anterior) / ventas_mes_anterior) * 100, 1
+            )
+
+        total_mes = sum(por_marketplace.values())
 
         return {
             "kpis": {
-                "total_ordenes": len(todas),
-                "nuevas": len(nuevas),
-                "atrasadas": len(atrasadas),
-                "ordenes_hoy": len(ordenes_hoy),
-                "ventas_mes_actual": round(ventas_mes_actual, 2),
+                "total_ordenes":       len(todas),
+                "nuevas":              len(nuevas),
+                "atrasadas":           len(atrasadas),
+                "ordenes_hoy":         len(ordenes_hoy),
+                "ventas_mes_actual":   round(ventas_mes_actual, 2),
                 "ventas_mes_anterior": round(ventas_mes_anterior, 2),
-                "variacion_pct": variacion_pct,
+                "variacion_pct":       variacion_pct,
+                "ordenes_mes_actual":  len(ordenes_mes_actual),
             },
             "por_marketplace": [
-                {"marketplace": k, "ordenes": v, "monto": round(por_marketplace_monto[k], 2)}
+                {
+                    "marketplace": k,
+                    "ordenes": v,
+                    "monto": round(por_marketplace_monto[k], 2),
+                    "pct": round((v / total_mes * 100) if total_mes > 0 else 0, 1),
+                }
                 for k, v in sorted(por_marketplace.items(), key=lambda x: x[1], reverse=True)
             ],
-            "por_cliente": por_cliente,
-            "grafico": grafico,
+            "por_cliente":   por_cliente,
+            "grafico":       grafico,
             "top_productos": top_productos,
             "ordenes_atrasadas": [
                 {
                     "id": o.id,
-                    "orden_id": o.orden_id_marketplace,
-                    "marketplace": str(o.marketplace.value) if o.marketplace else '',
-                    "cliente": o.cliente_nombre,
-                    "fecha_despacho": o.fecha_despacho,
-                    "estado": o.estado_marketplace,
-                    "total": float(o.total or 0),
+                    "orden_id":       o.orden_id_marketplace,
+                    "marketplace":    str(o.marketplace.value) if o.marketplace else '',
+                    "cliente":        o.cliente_nombre,
+                    "fecha_despacho": str(o.fecha_despacho) if o.fecha_despacho else None,
+                    "estado":         o.estado_marketplace,
+                    "total":          float(o.total or 0),
                 }
                 for o in atrasadas[:10]
             ],
             "ordenes_hoy_lista": [
                 {
                     "id": o.id,
-                    "orden_id": o.orden_id_marketplace,
+                    "orden_id":    o.orden_id_marketplace,
                     "marketplace": str(o.marketplace.value) if o.marketplace else '',
-                    "cliente": o.cliente_nombre,
-                    "estado": o.estado_marketplace,
-                    "total": float(o.total or 0),
+                    "cliente":     o.cliente_nombre,
+                    "estado":      o.estado_marketplace,
+                    "total":       float(o.total or 0),
                 }
                 for o in ordenes_hoy[:10]
             ],
