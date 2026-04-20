@@ -133,16 +133,33 @@ export default function VentaOrdenes() {
     }, [ordenes, filtroDesde, filtroHasta])
 
   // Canceladas del mes (para el card)
-  const canceladasMes = useMemo(() =>
-    ordenesMes.filter(o => o.estado_unificado === 'Cancelada'),
+    const canceladasMes = useMemo(() =>
+    ordenesMes.filter(o => {
+        if (o.estado_unificado !== 'Cancelada') return false
+        const items = o.items || []
+        const tieneJamaroff = items.some((item: any) => {
+        const nombre = (item.nombre || item.name || item.Name || item.descripcion || '').toLowerCase()
+        return nombre.includes('jamaroff')
+        })
+        return !tieneJamaroff
+    }),
     [ordenesMes]
-  )
+    )
 
   // Activas del mes (sin canceladas) — estas son las que se muestran en tabla
-  const activasMes = useMemo(() =>
-    ordenesMes.filter(o => o.estado_unificado !== 'Cancelada'),
+    const activasMes = useMemo(() =>
+    ordenesMes.filter(o => {
+        if (o.estado_unificado === 'Cancelada') return false
+        const items = o.items || []
+        const tieneJamaroff = items.some((item: any) => {
+        const nombre = (item.nombre || item.name || item.Name || item.descripcion || '').toLowerCase()
+        return nombre.includes('jamaroff')
+        })
+        if (tieneJamaroff) return false
+        return true
+    }),
     [ordenesMes]
-  )
+    )
 
   // Filtros adicionales sobre activas
   const filtradas = useMemo(() => {
