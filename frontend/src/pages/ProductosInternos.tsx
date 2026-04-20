@@ -444,6 +444,154 @@ function PlanoEditor({ productoId, planoInicial, planos, onPlanosChange }: {
   )
 }
 
+function CopiarInsumos({ productoId, onCopiado }: { productoId: number; onCopiado: () => void }) {
+  const [productos, setProductos] = useState<Producto[]>([])
+  const [fuenteId, setFuenteId] = useState('')
+  const [insumosFuente, setInsumosFuente] = useState<any[]>([])
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const [copiando, setCopiando] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    api.get('/productos-internos').then(r => {
+      setProductos((r.data.productos || []).filter((p: Producto) => p.id !== productoId))
+    }).catch(() => {})
+  }, [productoId])
+
+  const onSeleccionar = async (id: string) => {
+    setFuenteId(id)
+    setMsg('')
+    setConfirmando(false)
+    if (!id) { setInsumosFuente([]); return }
+    setLoadingPreview(true)
+    try {
+      const r = await api.get(`/insumos/producto/${id}`)
+      setInsumosFuente(r.data.insumos || [])
+    } catch {
+      setInsumosFuente([])
+    } finally {
+      setLoadingPreview(false)
+    }
+  }
+
+  const copiar = async () => {
+    if (!fuenteId) return
+    setCopiando(true)
+    try {
+      await api.post(`/insumos/producto/${productoId}/copiar-desde/${fuenteId}`)
+      setMsg(`✓ ${insumosFuente.length} insumos copiados correctamente`)
+      setConfirmando(false)
+      setFuenteId('')
+      setInsumosFuente([])
+      onCopiado()
+    } catch (e: any) {
+      setMsg(`Error: ${e.response?.data?.detail || 'No se pudo copiar'}`)
+    } finally {
+      setCopiando(false)
+    }
+  }
+
+  const IS: React.CSSProperties = {
+    background: 'var(--bg)', border: '0.5px solid var(--border)',
+    borderRadius: '7px', padding: '7px 10px', fontSize: '13px',
+    color: 'var(--text-1)', outline: 'none', width: '100%',
+  }
+
+  return (
+    <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: insumosFuente.length > 0 ? '12px' : '0' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '4px', fontWeight: 500 }}>
+            Seleccionar producto fuente
+          </div>
+          <select value={fuenteId} onChange={e => onSeleccionar(e.target.value)} style={IS}>
+            <option value="">Seleccionar producto...</option>
+            {productos.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.sku} — {p.descripcion}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => setConfirmando(true)}
+          disabled={!fuenteId || insumosFuente.length === 0 || copiando}
+          style={{
+            padding: '7px 14px', borderRadius: '7px', border: 'none',
+            background: fuenteId && insumosFuente.length > 0 ? '#7c3aed' : 'var(--bg-3)',
+            color: fuenteId && insumosFuente.length > 0 ? '#fff' : 'var(--text-3)',
+            fontSize: '13px', cursor: fuenteId && insumosFuente.length > 0 ? 'pointer' : 'not-allowed',
+            whiteSpace: 'nowrap', marginBottom: '1px', fontWeight: 500,
+            opacity: copiando ? 0.6 : 1,
+          }}
+        >
+          Copiar insumos
+        </button>
+      </div>
+
+      {/* Preview insumos del producto fuente */}
+      {loadingPreview && (
+        <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '8px 0' }}>Cargando insumos...</div>
+      )}
+
+      {!loadingPreview && fuenteId && insumosFuente.length === 0 && (
+        <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '8px 0' }}>
+          Este producto no tiene insumos registrados
+        </div>
+      )}
+
+      {!loadingPreview && insumosFuente.length > 0 && (
+        <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden' }}>
+          <div style={{ padding: '8px 12px', background: 'var(--bg-3)', fontSize: '11px', color: 'var(--text-3)', fontWeight: 500 }}>
+            {insumosFuente.length} insumos encontrados — se reemplazarán los insumos actuales
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {insumosFuente.map((pi, i) => (
+                <tr key={i} style={{ borderBottom: i < insumosFuente.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
+                  <td style={{ padding: '6px 12px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--info)' }}>{pi.codigo}</td>
+                  <td style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--text-1)' }}>{pi.nombre}</td>
+                  <td style={{ padding: '6px 12px', fontSize: '11px', color: 'var(--text-3)' }}>{pi.unidad_medida}</td>
+                  <td style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600, color: 'var(--text-2)' }}>×{pi.cantidad}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Confirm */}
+      {confirmando && (
+        <div style={{ marginTop: '10px', padding: '12px', background: '#7c3aed18', border: '0.5px solid #7c3aed44', borderRadius: '8px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-1)', marginBottom: '10px', fontWeight: 500 }}>
+            ⚠️ Se reemplazarán los insumos actuales del producto con los {insumosFuente.length} insumos del producto seleccionado. ¿Continuar?
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setConfirmando(false)} style={{
+              padding: '6px 14px', borderRadius: '7px', border: '0.5px solid var(--border)',
+              background: 'var(--bg)', color: 'var(--text-2)', fontSize: '12px', cursor: 'pointer',
+            }}>Cancelar</button>
+            <button onClick={copiar} disabled={copiando} style={{
+              padding: '6px 14px', borderRadius: '7px', border: 'none',
+              background: '#7c3aed', color: '#fff', fontSize: '12px',
+              fontWeight: 500, cursor: 'pointer', opacity: copiando ? 0.6 : 1,
+            }}>{copiando ? 'Copiando...' : 'Sí, copiar insumos'}</button>
+          </div>
+        </div>
+      )}
+
+      {msg && (
+        <div style={{
+          marginTop: '10px', padding: '8px 12px', borderRadius: '7px', fontSize: '12px',
+          background: msg.startsWith('✓') ? 'var(--success-bg)' : 'var(--danger-bg)',
+          color: msg.startsWith('✓') ? 'var(--success)' : 'var(--danger)',
+        }}>{msg}</div>
+      )}
+    </div>
+  )
+}
+
 // =============================================================================
 // Modal Producto
 // =============================================================================
@@ -694,7 +842,18 @@ function ProductoModal({ producto, onClose, onSave }: {
 
           {/* Tab Insumos */}
           {tab === 'insumos' && isEdit && <>
-            {seccion('Agregar insumo')}
+
+            {/* Copiar desde otro producto */}
+            {seccion('Copiar insumos de otro producto')}
+            <CopiarInsumos
+              productoId={producto!.id!}
+              onCopiado={async () => {
+                const r = await api.get(`/insumos/producto/${producto!.id}`)
+                setProductoInsumos(r.data.insumos || [])
+              }}
+            />
+
+            {seccion('Agregar insumo manualmente')}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'flex-end' }}>
               <div style={{ flex: 2 }}>
                 {label('Insumo')}
@@ -713,6 +872,7 @@ function ProductoModal({ producto, onClose, onSave }: {
                 fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: '1px',
               }}>+ Agregar</button>
             </div>
+
             {seccion(`Insumos del producto · Costo total: $${costoTotal.toLocaleString('es-CL')}`)}
             {productoInsumos.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>Sin insumos agregados</div>

@@ -154,3 +154,46 @@ async def eliminar_insumo_producto(producto_id: int, relacion_id: int, db: Async
         return {"mensaje": "Insumo eliminado del producto"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@router.post("/producto/{producto_id}/copiar-desde/{fuente_id}")
+async def copiar_insumos_desde_producto(
+    producto_id: int,
+    fuente_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Copia los insumos de un producto fuente al producto destino."""
+    try:
+        # Obtener insumos del producto fuente
+        result = await db.execute(
+            select(ProductoInsumo).where(ProductoInsumo.producto_interno_id == fuente_id)
+        )
+        insumos_fuente = result.scalars().all()
+
+        if not insumos_fuente:
+            raise HTTPException(status_code=404, detail="El producto fuente no tiene insumos")
+
+        # Eliminar insumos actuales del producto destino
+        result_actuales = await db.execute(
+            select(ProductoInsumo).where(ProductoInsumo.producto_interno_id == producto_id)
+        )
+        for pi in result_actuales.scalars().all():
+            await db.delete(pi)
+
+        # Copiar insumos del fuente al destino
+        for pi in insumos_fuente:
+            nuevo = ProductoInsumo(
+                producto_interno_id=producto_id,
+                insumo_id=pi.insumo_id,
+                cantidad=pi.cantidad,
+            )
+            db.add(nuevo)
+
+        await db.commit()
+        return {
+            "mensaje": f"{len(insumos_fuente)} insumos copiados correctamente",
+            "total": len(insumos_fuente),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
