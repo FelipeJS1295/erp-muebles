@@ -13,8 +13,9 @@ import OrdenesTrabajo from './pages/OrdenesTrabajo'
 import OrdenesManual from './pages/OrdenesManual'
 import Clientes from './pages/Clientes'
 import ApiClientes from './pages/ApiClientes'
+import GastosMensuales from './pages/GastosMensuales'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -158,6 +159,9 @@ export default function App() {
           {modulo === 'contabilidad' && <>
             <div style={s.sectionLabel}>Contabilidad</div>
             <NavItem id="ordenes-trabajo" label="Órdenes de Trabajo" active={page === 'ordenes-trabajo'} onClick={() => setPage('ordenes-trabajo')} icon={ICONS.ordenesTrabajo} />
+            <NavItem id="gastos" label="Gastos Mensuales" active={page === 'gastos'} onClick={() => setPage('gastos')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>}
+            />
           </>}
 
           {/* Módulo Mantenedores */}
@@ -227,6 +231,7 @@ export default function App() {
         {page === 'ordenes-manual' && <OrdenesManual />}
         {page === 'clientes' && <Clientes />}
         {page === 'api-clientes' && <ApiClientes />}
+        {page === 'gastos' && <GastosMensuales />}
       </main>
     </div>
   )

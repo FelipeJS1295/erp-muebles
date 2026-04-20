@@ -877,3 +877,108 @@ async def obtener_orden_data(orden_id: int, db: AsyncSession = Depends(get_db)):
             "factura_email": sod.factura_email,
         }
     }
+
+# =============================================================================
+# Gastos Mensuales
+# =============================================================================
+
+from app.models.gasto import Gasto, TipoGastoEnum
+
+@app.get("/api/v1/gastos", tags=["Gastos"])
+async def listar_gastos(
+    mes: int = None,
+    anio: int = None,
+    tipo: str = None,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        query = select(Gasto).order_by(Gasto.fecha.desc())
+        if mes and anio:
+            from sqlalchemy import extract
+            query = query.where(
+                extract('month', Gasto.fecha) == mes,
+                extract('year', Gasto.fecha) == anio,
+            )
+        elif anio:
+            from sqlalchemy import extract
+            query = query.where(extract('year', Gasto.fecha) == anio)
+        if tipo:
+            query = query.where(Gasto.tipo == tipo)
+        result = await db.execute(query)
+        gastos = result.scalars().all()
+        total = sum(g.monto for g in gastos)
+        return {
+            "total": len(gastos),
+            "monto_total": total,
+            "gastos": [
+                {
+                    "id": g.id,
+                    "fecha": g.fecha.isoformat(),
+                    "tipo": g.tipo,
+                    "descripcion": g.descripcion,
+                    "monto": g.monto,
+                    "fecha_creacion": g.fecha_creacion.isoformat() if g.fecha_creacion else None,
+                }
+                for g in gastos
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/api/v1/gastos", tags=["Gastos"])
+async def crear_gasto(body: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        from datetime import date
+        gasto = Gasto(
+            fecha=date.fromisoformat(body["fecha"]),
+            tipo=body["tipo"],
+            descripcion=body["descripcion"],
+            monto=float(body["monto"]),
+        )
+        db.add(gasto)
+        await db.commit()
+        await db.refresh(gasto)
+        return {"id": gasto.id, "mensaje": "Gasto creado correctamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.put("/api/v1/gastos/{gasto_id}", tags=["Gastos"])
+async def actualizar_gasto(gasto_id: int, body: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        from datetime import date
+        result = await db.execute(select(Gasto).where(Gasto.id == gasto_id))
+        gasto = result.scalar_one_or_none()
+        if not gasto:
+            raise HTTPException(status_code=404, detail="Gasto no encontrado")
+        if "fecha" in body:
+            gasto.fecha = date.fromisoformat(body["fecha"])
+        if "tipo" in body:
+            gasto.tipo = body["tipo"]
+        if "descripcion" in body:
+            gasto.descripcion = body["descripcion"]
+        if "monto" in body:
+            gasto.monto = float(body["monto"])
+        await db.commit()
+        return {"mensaje": "Gasto actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.delete("/api/v1/gastos/{gasto_id}", tags=["Gastos"])
+async def eliminar_gasto(gasto_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(Gasto).where(Gasto.id == gasto_id))
+        gasto = result.scalar_one_or_none()
+        if not gasto:
+            raise HTTPException(status_code=404, detail="Gasto no encontrado")
+        await db.delete(gasto)
+        await db.commit()
+        return {"mensaje": "Gasto eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
