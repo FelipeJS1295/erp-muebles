@@ -234,7 +234,7 @@ export default function GastosMensuales() {
     .filter(g => filtroEstado ? g.estado === filtroEstado : true)
 
   const montoTotal = gastosFiltrados.reduce((s, g) => s + g.monto, 0)
-  const montoPagado = gastosFiltrados.reduce((s, g) => s + g.monto_pagado, 0)
+  const montoPagado = gastosFiltrados.reduce((s, g) => s + (g.monto_pagado ?? 0), 0)
   const montoPendiente = montoTotal - montoPagado
 
   const porTipo = TIPOS.map(t => ({
@@ -478,8 +478,8 @@ export default function GastosMensuales() {
             }}>
               {[
                 { label: 'Total', valor: gastoSeleccionado.monto, color: 'var(--text-1)' },
-                { label: 'Pagado', valor: gastoSeleccionado.monto_pagado, color: '#059669' },
-                { label: 'Saldo', valor: gastoSeleccionado.monto - gastoSeleccionado.monto_pagado, color: gastoSeleccionado.monto - gastoSeleccionado.monto_pagado > 0 ? '#dc2626' : '#059669' },
+                { label: 'Pagado', valor: gastoSeleccionado.monto_pagado ?? 0, color: '#059669' },
+                { label: 'Saldo', valor: gastoSeleccionado.monto - (gastoSeleccionado.monto_pagado ?? 0), color: gastoSeleccionado.monto - gastoSeleccionado.monto_pagado > 0 ? '#dc2626' : '#059669' },
               ].map(c => (
                 <div key={c.label} style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{c.label}</div>
