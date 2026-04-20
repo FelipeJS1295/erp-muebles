@@ -77,8 +77,11 @@ export default function VentaOrdenes() {
   const [filtroMkt, setFiltroMkt] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [busqueda, setBusqueda] = useState('')
-  const [filtroDesde, setFiltroDesde] = useState('')
-  const [filtroHasta, setFiltroHasta] = useState('')
+  const now = new Date()
+  const primerDiaMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const hoyStr = now.toISOString().split('T')[0]
+  const [filtroDesde, setFiltroDesde] = useState(primerDiaMes)
+  const [filtroHasta, setFiltroHasta] = useState(hoyStr)
   const [expandida, setExpandida] = useState<number | null>(null)
 
   const cargar = async () => {
@@ -115,8 +118,11 @@ export default function VentaOrdenes() {
           !tieneProducto
         ) return false
       }
-      if (filtroDesde && o.fecha_despacho && o.fecha_despacho < filtroDesde) return false
-      if (filtroHasta && o.fecha_despacho && o.fecha_despacho > filtroHasta) return false
+        const fechaRef = o.fecha_creacion
+        ? o.fecha_creacion.split('T')[0]
+        : o.fecha_despacho || ''
+        if (filtroDesde && fechaRef && fechaRef < filtroDesde) return false
+        if (filtroHasta && fechaRef && fechaRef > filtroHasta) return false
       return true
     })
   }, [ordenes, filtroMkt, filtroEstado, busqueda, filtroDesde, filtroHasta])
