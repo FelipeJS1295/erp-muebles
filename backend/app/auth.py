@@ -1,6 +1,3 @@
-"""
-Autenticación JWT
-"""
 import os
 import hashlib
 from datetime import datetime, timedelta

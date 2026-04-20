@@ -1,10 +1,3 @@
-"""
-Servicio de integración con Paris Marketplace (Cencosud)
-=========================================================
-Autenticación: Bearer API Key → Access Token (dura 4 horas)
-Base URL: https://api-developers.ecomm.cencosud.com
-"""
-
 import time
 import httpx
 from typing import Optional

@@ -1,8 +1,3 @@
-"""
-Modelo de Otros Descuentos
-==========================
-Descuentos varios: compras en cuotas, horas descontadas, otros.
-"""
 from sqlalchemy import Column, Integer, Float, Date, DateTime, String, ForeignKey, Enum as SAEnum
 from sqlalchemy.sql import func
 from app.db.base import Base

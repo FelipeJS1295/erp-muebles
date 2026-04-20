@@ -1,6 +1,3 @@
-"""
-Router de Órdenes de Trabajo
-"""
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession

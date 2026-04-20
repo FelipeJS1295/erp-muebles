@@ -1,8 +1,3 @@
-"""
-Modelo de Días Faltantes
-========================
-Registro de inasistencias de trabajadores con descuento automático.
-"""
 from sqlalchemy import Column, Integer, Float, Date, DateTime, String, ForeignKey
 from sqlalchemy.sql import func
 from app.db.base import Base

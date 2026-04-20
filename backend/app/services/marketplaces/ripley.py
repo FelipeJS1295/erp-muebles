@@ -1,6 +1,3 @@
-"""
-Ripley Chile - Mirakl API
-"""
 import httpx
 from datetime import datetime, timedelta
 

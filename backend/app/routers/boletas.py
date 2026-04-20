@@ -1,6 +1,3 @@
-"""
-Router Boletas
-"""
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession

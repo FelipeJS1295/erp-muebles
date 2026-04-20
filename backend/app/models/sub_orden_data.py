@@ -1,8 +1,3 @@
-"""
-Modelo Sub Orden Data
-=====================
-Datos extendidos de una orden para boletas y facturación.
-"""
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from app.db.base import Base

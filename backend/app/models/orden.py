@@ -1,7 +1,3 @@
-"""
-Modelos de órdenes para todos los marketplaces
-"""
-
 from datetime import datetime
 from sqlalchemy import String, Float, Integer, DateTime, JSON, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column

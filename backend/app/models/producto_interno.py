@@ -1,9 +1,3 @@
-"""
-Modelo de Producto Interno
-==========================
-Catálogo interno de productos de la fábrica.
-"""
-
 from sqlalchemy import Column, Integer, String, Float, JSON, Enum as SAEnum, DateTime
 from sqlalchemy.sql import func
 from app.db.base import Base

@@ -1,10 +1,3 @@
-"""
-Servicio de integración con Falabella Seller Center API
-========================================================
-Autenticación: HMAC-SHA256 signature
-Base URL: https://sellercenter-api.falabella.com
-"""
-
 import hashlib
 import hmac
 import httpx

@@ -1,8 +1,3 @@
-"""
-Modelo de Pagos de Gastos
-=========================
-Registro de pagos y abonos asociados a un gasto.
-"""
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, Enum as SAEnum
 from sqlalchemy.sql import func
 from app.db.base import Base

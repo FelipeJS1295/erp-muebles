@@ -1,9 +1,3 @@
-"""
-Modelo de Orden de Trabajo
-==========================
-Registro de producción por trabajador y producto.
-"""
-
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from app.db.base import Base

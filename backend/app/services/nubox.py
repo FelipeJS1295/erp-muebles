@@ -1,6 +1,3 @@
-"""
-Nubox - Servicio de Facturación Electrónica
-"""
 import httpx
 import base64
 from datetime import datetime

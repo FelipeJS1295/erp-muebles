@@ -1,8 +1,3 @@
-"""
-Modelo de Remuneraciones
-========================
-Sueldo base y tipo de contrato por trabajador.
-"""
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SAEnum
 from sqlalchemy.sql import func
 from app.db.base import Base

@@ -1,9 +1,3 @@
-"""
-Modelo de Plano de Corte
-========================
-Planos de corte de tela asociados a productos internos.
-"""
-
 from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from app.db.base import Base

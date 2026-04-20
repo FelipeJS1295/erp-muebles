@@ -1,8 +1,3 @@
-"""
-Modelo de Bonos
-===============
-Registro de bonos asignados a trabajadores.
-"""
 from sqlalchemy import Column, Integer, Float, Date, DateTime, String, ForeignKey, Enum as SAEnum
 from sqlalchemy.sql import func
 from app.db.base import Base

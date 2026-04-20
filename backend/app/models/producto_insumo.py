@@ -1,9 +1,3 @@
-"""
-Modelo de relación Producto Interno - Insumo
-============================================
-Define qué insumos y en qué cantidad usa cada producto interno.
-"""
-
 from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship

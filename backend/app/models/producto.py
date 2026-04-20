@@ -1,7 +1,3 @@
-"""
-Modelo de productos de la fábrica
-"""
-
 from datetime import datetime
 from sqlalchemy import String, Float, Integer, DateTime, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column

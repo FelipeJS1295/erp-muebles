@@ -1,6 +1,3 @@
-"""
-ERP Fábrica de Muebles — API Principal
-"""
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import Depends

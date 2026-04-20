@@ -1,8 +1,3 @@
-"""
-Modelo de Horas Extras
-======================
-Registro de horas extras por trabajador, con aprobación de admin_master.
-"""
 from sqlalchemy import Column, Integer, Float, Date, DateTime, String, ForeignKey, Enum as SAEnum
 from sqlalchemy.sql import func
 from app.db.base import Base

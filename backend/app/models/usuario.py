@@ -1,9 +1,3 @@
-"""
-Modelo de Usuario
-=================
-Usuarios del sistema ERP con diferentes roles.
-"""
-
 from sqlalchemy import Column, Integer, String, DateTime, Enum as SAEnum
 from sqlalchemy.sql import func
 from app.db.base import Base

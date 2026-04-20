@@ -1,10 +1,3 @@
-"""
-Servicio de integración con Walmart Chile Marketplace
-======================================================
-Autenticación: OAuth2 client_credentials
-Base URL: https://marketplace.walmartapis.com/v3
-"""
-
 import base64
 import time
 import uuid

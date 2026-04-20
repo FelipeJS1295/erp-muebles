@@ -1,9 +1,3 @@
-"""
-Modelo de SKU Retail
-====================
-Mapeo de SKUs de marketplaces externos al producto interno.
-"""
-
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
