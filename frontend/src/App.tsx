@@ -16,8 +16,9 @@ import ApiClientes from './pages/ApiClientes'
 import GastosMensuales from './pages/GastosMensuales'
 import Remuneraciones from './pages/Remuneraciones'
 import HorasExtras from './pages/HorasExtras'
+import DiasExtras from './pages/DiasExtras'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -175,6 +176,9 @@ export default function App() {
             <NavItem id="horas-extras" label="Horas Extras" active={page === 'horas-extras'} onClick={() => setPage('horas-extras')}
               icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
             />
+            <NavItem id="dias-extras" label="Días Extras" active={page === 'dias-extras'} onClick={() => setPage('dias-extras')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+            />
           </>}
 
           {/* Módulo Mantenedores */}
@@ -247,6 +251,7 @@ export default function App() {
         {page === 'gastos' && <GastosMensuales />}
         {page === 'remuneraciones' && <Remuneraciones />}
         {page === 'horas-extras' && <HorasExtras />}
+        {page === 'dias-extras' && <DiasExtras />}
       </main>
     </div>
   )

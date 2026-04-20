@@ -14,6 +14,7 @@ from app.routers.trabajadores import router as trabajadores_router
 from app.routers.ordenes_trabajo import router as ordenes_trabajo_router
 from app.routers.clientes_ventas import router as clientes_ventas_router
 from app.routers.ordenes_manuales import router as ordenes_manuales_router
+from app.routers.dias_extras import router as dias_extras_router
 from app.routers.horas_extras import router as horas_extras_router
 from app.routers.boletas import router as boletas_router
 from app.routers.api_clientes import router as api_clientes_router
@@ -103,6 +104,7 @@ app.include_router(clientes_ventas_router)
 app.include_router(api_clientes_router)
 app.include_router(boletas_router)
 app.include_router(horas_extras_router)
+app.include_router(dias_extras_router)
 
 # =============================================================================
 # Helper: Auto-crear producto interno
