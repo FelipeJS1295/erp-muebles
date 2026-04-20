@@ -21,8 +21,9 @@ import Bonos from './pages/Bonos'
 import DiasFaltantes from './pages/DiasFaltantes'
 import ResumenMensual from './pages/ResumenMensual'
 import OtrosDescuentos from './pages/OtrosDescuentos'
+import VentaOrdenes from './pages/VentaOrdenes'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -153,11 +154,13 @@ export default function App() {
             <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>Inicio</span>
           </button>
 
-          {/* Módulo Ventas */}
           {modulo === 'ventas' && <>
             <div style={s.sectionLabel}>Ventas</div>
             <NavItem id="dashboard" label="Resumen" active={page === 'dashboard'} onClick={() => setPage('dashboard')} icon={ICONS.dashboard} />
             <NavItem id="ordenes" label="Órdenes" active={page === 'ordenes'} onClick={() => setPage('ordenes')} icon={ICONS.ordenes} />
+            <NavItem id="venta-ordenes" label="Venta Órdenes" active={page === 'venta-ordenes'} onClick={() => setPage('venta-ordenes')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>}
+            />
             <NavItem id="productos" label="Productos" active={page === 'productos'} onClick={() => setPage('productos')} icon={ICONS.productos} />
             <NavItem id="ordenes-manual" label="Ventas Directas" active={page === 'ordenes-manual'} onClick={() => setPage('ordenes-manual')}
               icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 3h12v9a1 1 0 01-1 1H2a1 1 0 01-1-1V3z"/><path d="M1 3l1.5-2h9L13 3"/><path d="M5 7h4"/></svg>}/>
@@ -273,6 +276,7 @@ export default function App() {
         {page === 'dias-faltantes' && <DiasFaltantes />}
         {page === 'resumen-mensual' && <ResumenMensual />}
         {page === 'otros-descuentos' && <OtrosDescuentos />}
+        {page === 'venta-ordenes' && <VentaOrdenes />}
       </main>
     </div>
   )
