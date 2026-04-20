@@ -400,7 +400,8 @@ export default function VentaOrdenes() {
                       </td>
                       <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
                         {(() => {
-                            const suborden = o.sub_orden_id || o.orden_id
+                            const suborden = o.sub_orden_id || o.orden_id || ''
+                            console.log('cruce:', o.orden_id, o.sub_orden_id, '→', liqMap[o.sub_orden_id || ''], liqMap[o.orden_id || ''])
                             const pago = liquidacionesMap[suborden]
                             if (!pago) return <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>—</span>
                             return (
