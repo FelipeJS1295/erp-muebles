@@ -15,8 +15,9 @@ import Clientes from './pages/Clientes'
 import ApiClientes from './pages/ApiClientes'
 import GastosMensuales from './pages/GastosMensuales'
 import Remuneraciones from './pages/Remuneraciones'
+import HorasExtras from './pages/HorasExtras'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -166,11 +167,13 @@ export default function App() {
             />
           </>}
 
-          {/* Módulo RRHH */}
           {modulo === 'rrhh' && <>
             <div style={s.sectionLabel}>RRHH</div>
             <NavItem id="remuneraciones" label="Remuneraciones" active={page === 'remuneraciones'} onClick={() => setPage('remuneraciones')}
               icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>}
+            />
+            <NavItem id="horas-extras" label="Horas Extras" active={page === 'horas-extras'} onClick={() => setPage('horas-extras')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
             />
           </>}
 
@@ -243,6 +246,7 @@ export default function App() {
         {page === 'api-clientes' && <ApiClientes />}
         {page === 'gastos' && <GastosMensuales />}
         {page === 'remuneraciones' && <Remuneraciones />}
+        {page === 'horas-extras' && <HorasExtras />}
       </main>
     </div>
   )
