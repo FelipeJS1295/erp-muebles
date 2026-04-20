@@ -982,3 +982,115 @@ async def eliminar_gasto(gasto_id: int, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# =============================================================================
+# Pagos de Gastos
+# =============================================================================
+
+from app.models.gasto_pago import GastoPago, TipoPagoEnum
+
+@app.get("/api/v1/gastos/{gasto_id}/pagos", tags=["Gastos"])
+async def listar_pagos_gasto(gasto_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(
+            select(GastoPago).where(GastoPago.gasto_id == gasto_id).order_by(GastoPago.fecha.desc())
+        )
+        pagos = result.scalars().all()
+        return {
+            "total": len(pagos),
+            "pagos": [
+                {
+                    "id": p.id,
+                    "gasto_id": p.gasto_id,
+                    "fecha": p.fecha.isoformat(),
+                    "tipo": p.tipo,
+                    "comprobante": p.comprobante,
+                    "monto": p.monto,
+                    "fecha_creacion": p.fecha_creacion.isoformat() if p.fecha_creacion else None,
+                }
+                for p in pagos
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/api/v1/gastos/{gasto_id}/pagos", tags=["Gastos"])
+async def crear_pago_gasto(gasto_id: int, body: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        from datetime import date
+
+        # Verificar que el gasto existe
+        result = await db.execute(select(Gasto).where(Gasto.id == gasto_id))
+        gasto = result.scalar_one_or_none()
+        if not gasto:
+            raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+        # Crear el pago
+        pago = GastoPago(
+            gasto_id=gasto_id,
+            fecha=date.fromisoformat(body["fecha"]),
+            tipo=body["tipo"],
+            comprobante=body.get("comprobante") or None,
+            monto=float(body["monto"]),
+        )
+        db.add(pago)
+
+        # Recalcular monto pagado y estado
+        result_pagos = await db.execute(
+            select(GastoPago).where(GastoPago.gasto_id == gasto_id)
+        )
+        pagos_anteriores = result_pagos.scalars().all()
+        total_pagado = sum(p.monto for p in pagos_anteriores) + float(body["monto"])
+
+        gasto.monto_pagado = total_pagado
+        if total_pagado >= gasto.monto:
+            gasto.estado = "pagado"
+        elif total_pagado > 0:
+            gasto.estado = "parcial"
+        else:
+            gasto.estado = "pendiente"
+
+        await db.commit()
+        return {"mensaje": "Pago registrado correctamente", "estado_gasto": gasto.estado}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.delete("/api/v1/gastos/{gasto_id}/pagos/{pago_id}", tags=["Gastos"])
+async def eliminar_pago_gasto(gasto_id: int, pago_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # Eliminar pago
+        result = await db.execute(
+            select(GastoPago).where(GastoPago.id == pago_id, GastoPago.gasto_id == gasto_id)
+        )
+        pago = result.scalar_one_or_none()
+        if not pago:
+            raise HTTPException(status_code=404, detail="Pago no encontrado")
+        await db.delete(pago)
+
+        # Recalcular estado del gasto
+        result_gasto = await db.execute(select(Gasto).where(Gasto.id == gasto_id))
+        gasto = result_gasto.scalar_one_or_none()
+        if gasto:
+            result_pagos = await db.execute(
+                select(GastoPago).where(GastoPago.gasto_id == gasto_id, GastoPago.id != pago_id)
+            )
+            pagos_restantes = result_pagos.scalars().all()
+            total_pagado = sum(p.monto for p in pagos_restantes)
+            gasto.monto_pagado = total_pagado
+            if total_pagado >= gasto.monto:
+                gasto.estado = "pagado"
+            elif total_pagado > 0:
+                gasto.estado = "parcial"
+            else:
+                gasto.estado = "pendiente"
+
+        await db.commit()
+        return {"mensaje": "Pago eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
