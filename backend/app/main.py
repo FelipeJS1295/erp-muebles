@@ -925,7 +925,9 @@ async def listar_gastos(
             ],
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 @app.post("/api/v1/gastos", tags=["Gastos"])

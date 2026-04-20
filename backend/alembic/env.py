@@ -10,6 +10,8 @@ from alembic import context
 # Importar todos los modelos para que Alembic los detecte
 from app.db.base import Base
 from app.models import Orden, Producto
+from app.models.gasto import Gasto
+from app.models.gasto_pago import GastoPago
 
 config = context.config
 
