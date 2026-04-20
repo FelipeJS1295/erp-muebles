@@ -23,7 +23,11 @@ TIPO_MAP = {
 
 def _safe_float(val) -> float:
     if val is None: return 0.0
-    try: return float(str(val).replace('$', '').replace('.', '').replace(',', '.').strip())
+    try:
+        import math
+        result = float(str(val).replace('$', '').replace('.', '').replace(',', '.').strip())
+        if math.isnan(result) or math.isinf(result): return 0.0
+        return result
     except: return 0.0
 
 
@@ -76,9 +80,9 @@ async def listar_liquidaciones(
                     "orden_id":           r.orden_id,
                     "descripcion":        r.descripcion,
                     "tipo":               r.tipo,
-                    "monto":              r.monto,
-                    "comision_pct":       r.comision_pct,
-                    "monto_a_pagar":      r.monto_a_pagar,
+                    "monto":              r.monto or 0,
+                    "comision_pct":       r.comision_pct or 0,
+                    "monto_a_pagar":      r.monto_a_pagar or 0,
                     "fecha_transaccion":  r.fecha_transaccion.isoformat() if r.fecha_transaccion else None,
                     "archivo_origen":     r.archivo_origen,
                     "nro_solicitud":      r.nro_solicitud,
