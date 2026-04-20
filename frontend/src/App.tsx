@@ -22,8 +22,9 @@ import DiasFaltantes from './pages/DiasFaltantes'
 import ResumenMensual from './pages/ResumenMensual'
 import OtrosDescuentos from './pages/OtrosDescuentos'
 import VentaOrdenes from './pages/VentaOrdenes'
+import LiquidacionParis from './pages/LiquidacionParis'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes' | 'liquidacion-paris'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -173,6 +174,10 @@ export default function App() {
             <NavItem id="gastos" label="Gastos Mensuales" active={page === 'gastos'} onClick={() => setPage('gastos')}
               icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>}
             />
+            <div style={s.sectionLabel}>Liquidaciones</div>
+            <NavItem id="liquidacion-paris" label="Paris" active={page === 'liquidacion-paris'} onClick={() => setPage('liquidacion-paris')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h4"/></svg>}
+            />
           </>}
 
           {modulo === 'rrhh' && <>
@@ -277,6 +282,7 @@ export default function App() {
         {page === 'resumen-mensual' && <ResumenMensual />}
         {page === 'otros-descuentos' && <OtrosDescuentos />}
         {page === 'venta-ordenes' && <VentaOrdenes />}
+        {page === 'liquidacion-paris' && <LiquidacionParis />}
       </main>
     </div>
   )

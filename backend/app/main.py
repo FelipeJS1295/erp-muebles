@@ -17,6 +17,7 @@ from app.routers.dias_faltantes import router as dias_faltantes_router
 from app.routers.resumen_mensual import router as resumen_mensual_router
 from app.routers.otros_descuentos import router as otros_descuentos_router
 from app.routers.dashboard_stats import router as dashboard_stats_router
+from app.routers.liquidaciones import router as liquidaciones_router
 from app.routers.bonos import router as bonos_router
 from app.routers.boletas import router as boletas_router
 from app.routers.api_clientes import router as api_clientes_router
@@ -112,6 +113,7 @@ app.include_router(dias_faltantes_router)
 app.include_router(resumen_mensual_router)
 app.include_router(otros_descuentos_router)
 app.include_router(dashboard_stats_router)
+app.include_router(liquidaciones_router)
 
 # =============================================================================
 # Helper: Auto-crear producto interno
