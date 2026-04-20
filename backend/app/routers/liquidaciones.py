@@ -219,3 +219,114 @@ async def eliminar_por_archivo(nombre_archivo: str, db: AsyncSession = Depends(g
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@router.post("/walmart/upload")
+async def subir_liquidacion_walmart(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        import io
+        import pandas as pd
+
+        contents = await file.read()
+        df = pd.read_csv(io.BytesIO(contents))
+
+        insertadas    = 0
+        omitidas      = 0
+        no_encontradas = []
+
+        for _, row in df.iterrows():
+            tipo_raw  = _safe_str(row.get('Tipo  / Transaction Type', ''))
+            item      = _safe_str(row.get('Item / Item', ''))
+            concepto  = _safe_str(row.get('Concept / Concepto', ''))
+
+            # Determinar tipo
+            if tipo_raw.lower() == 'venta':
+                if item.lower() == 'despacho seller':
+                    tipo = TipoLiquidacionEnum.cobro_despacho
+                else:
+                    tipo = TipoLiquidacionEnum.venta
+            elif tipo_raw.lower() == 'disputa':
+                if concepto.lower() == 'commission':
+                    tipo = TipoLiquidacionEnum.devolucion
+                else:
+                    omitidas += 1
+                    continue  # Storage y otros no nos afectan
+            else:
+                omitidas += 1
+                continue
+
+            # Orden — viene en formato científico, convertir a string limpio
+            orden_raw = row.get('Orden / Purchase Order')
+            nro_orden = ''
+            if orden_raw and str(orden_raw) not in ('nan', '1.0', '1'):
+                try:
+                    nro_orden = str(int(float(str(orden_raw))))
+                except Exception:
+                    nro_orden = _safe_str(orden_raw)
+
+            # Montos
+            afecto    = _safe_float(row.get('Afecto a Pago / Subject to Payment'))
+            comision  = _safe_float(row.get('Cargo por comision / Commission Charges'))
+            comision_pct = _safe_float(row.get('% Comision / Commission Rate'))
+
+            # Monto a pagar = afecto + comision (comision ya es negativa)
+            monto_a_pagar = afecto + comision if tipo == TipoLiquidacionEnum.venta else afecto
+
+            # Fecha
+            fecha_raw = _safe_str(row.get('Fecha de Venta / Sale Date', ''))
+            fecha_transaccion = None
+            if fecha_raw:
+                try:
+                    from datetime import datetime
+                    fecha_transaccion = datetime.strptime(fecha_raw, '%d_%m_%Y').date()
+                except Exception:
+                    pass
+
+            # Buscar orden en BD
+            orden_id = None
+            if nro_orden:
+                result = await db.execute(
+                    select(Orden).where(Orden.orden_id_marketplace == nro_orden)
+                )
+                orden = result.scalar_one_or_none()
+                if not orden:
+                    # Walmart guarda sub_orden_id diferente, buscar por sub_orden_id
+                    result = await db.execute(
+                        select(Orden).where(Orden.sub_orden_id == nro_orden)
+                    )
+                    orden = result.scalar_one_or_none()
+                if orden:
+                    orden_id = orden.id
+                elif tipo == TipoLiquidacionEnum.venta:
+                    no_encontradas.append(nro_orden)
+
+            liq = Liquidacion(
+                marketplace       = 'walmart_chile',
+                nro_suborden      = nro_orden or None,
+                orden_id          = orden_id,
+                descripcion       = item or concepto or None,
+                tipo              = tipo,
+                monto             = afecto,
+                comision_pct      = comision_pct or None,
+                monto_a_pagar     = monto_a_pagar,
+                fecha_transaccion = fecha_transaccion,
+                archivo_origen    = file.filename,
+                nro_solicitud     = _safe_str(row.get('Numero Liq. / Settlement number', '')) or None,
+            )
+            db.add(liq)
+            insertadas += 1
+
+        await db.commit()
+        return {
+            "mensaje":              f"Liquidación Walmart procesada: {insertadas} registros",
+            "insertadas":           insertadas,
+            "omitidas":             omitidas,
+            "no_encontradas":       no_encontradas[:20],
+            "total_no_encontradas": len(no_encontradas),
+        }
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
