@@ -112,7 +112,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
           <td style="padding:8px 12px;border-bottom:1px solid #eee">${o.descripcion}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee">${o.cliente || '—'}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.fecha_despacho}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.fecha_llegada || '—'}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${diasLabel}</td>
         </tr>
       `
@@ -159,7 +158,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
               <th>Producto</th>
               <th>Cliente</th>
               <th style="text-align:center">F. Despacho</th>
-              <th style="text-align:center">F. Entrega</th>
               <th style="text-align:center">Estado</th>
             </tr>
           </thead>
@@ -243,7 +241,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
                   <th style={{ ...TH, minWidth: '200px' }}>Producto</th>
                   <th style={TH}>Cliente</th>
                   <th style={{ ...TH, textAlign: 'center' as const }}>F. Despacho</th>
-                  <th style={{ ...TH, textAlign: 'center' as const }}>F. Entrega</th>
                   <th style={{ ...TH, textAlign: 'center' as const }}>Estado</th>
                 </tr>
               </thead>
@@ -271,9 +268,6 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
                       <td style={{ ...TD, fontSize: '12px', color: 'var(--text-2)' }}>{o.cliente || '—'}</td>
                       <td style={{ ...TD, textAlign: 'center', fontSize: '12px', fontFamily: 'monospace', color: 'var(--text-2)' }}>
                         {o.fecha_despacho}
-                      </td>
-                      <td style={{ ...TD, textAlign: 'center', fontSize: '12px', color: 'var(--text-3)' }}>
-                        {o.fecha_llegada || '—'}
                       </td>
                       <td style={{ ...TD, textAlign: 'center' }}>
                         {o.diff < 0 ? (
