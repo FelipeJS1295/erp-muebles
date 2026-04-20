@@ -102,24 +102,36 @@ export default function VentaOrdenes() {
   const [filtroDesde, setFiltroDesde] = useState(defaultDesde)
   const [filtroHasta, setFiltroHasta] = useState(defaultHasta)
   const [expandida, setExpandida] = useState<number | null>(null)
+  const [liquidacionesMap, setLiquidacionesMap] = useState<Record<string, number>>({})
 
-  const cargar = async () => {
+    const cargar = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/ordenes?limit=2000')
-      const raw = res.data.ordenes ?? []
-      setOrdenes(raw.map((o: any) => ({
+        const [resOrdenes, resLiq] = await Promise.all([
+        api.get('/ordenes?limit=2000'),
+        api.get('/liquidaciones?marketplace=paris_chile'),
+        ])
+        const raw = resOrdenes.data.ordenes ?? []
+        setOrdenes(raw.map((o: any) => ({
         ...o,
         estado_unificado: getEstadoUnificado(o),
-      })))
+        })))
+        // Mapa nro_suborden -> monto_a_pagar (solo ventas)
+        const liqMap: Record<string, number> = {}
+        for (const l of (resLiq.data.liquidaciones ?? [])) {
+        if (l.tipo === 'venta' && l.nro_suborden) {
+            liqMap[l.nro_suborden] = (liqMap[l.nro_suborden] || 0) + (l.monto_a_pagar ?? 0)
+        }
+        }
+        setLiquidacionesMap(liqMap)
     } catch {
-      setOrdenes([])
+        setOrdenes([])
     } finally {
-      setLoading(false)
+        setLoading(false)
     }
-  }
+    }
 
-  useEffect(() => { cargar() }, [])
+    useEffect(() => { cargar() }, [])
 
   // Órdenes del mes filtradas por fecha_creacion
     const ordenesMes = useMemo(() => {
@@ -317,7 +329,7 @@ export default function VentaOrdenes() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
             <thead>
               <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                {['Marketplace', 'N° Orden', 'Cliente', 'Descripción', 'Fecha Creación', 'Fecha Despacho', 'Precio Venta', 'Estado', ''].map(h => (
+                {['Marketplace', 'N° Orden', 'Cliente', 'Descripción', 'Fecha Despacho', 'Precio Venta', 'Pago', 'Estado', ''].map(h => (
                   <th key={h} style={TH}>{h}</th>
                 ))}
               </tr>
@@ -370,9 +382,6 @@ export default function VentaOrdenes() {
                         </div>
                         {masItems && <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{masItems}</div>}
                       </td>
-                      <td style={{ padding: '11px 14px', fontSize: '12px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
-                        {o.fecha_creacion ? new Date(o.fecha_creacion).toLocaleDateString('es-CL') : '—'}
-                      </td>
                       <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
                         {o.fecha_despacho ? (
                           <div>
@@ -388,6 +397,18 @@ export default function VentaOrdenes() {
                           ${Math.round(precio).toLocaleString('es-CL')}
                         </div>
                         {items.length > 1 && <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{items.length} productos</div>}
+                      </td>
+                      <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
+                        {(() => {
+                            const suborden = o.sub_orden_id || o.orden_id
+                            const pago = liquidacionesMap[suborden]
+                            if (!pago) return <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>—</span>
+                            return (
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb' }}>
+                                ${Math.round(pago).toLocaleString('es-CL')}
+                            </div>
+                            )
+                        })()}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, background: estCfg.bg, color: estCfg.color }}>
@@ -429,8 +450,8 @@ export default function VentaOrdenes() {
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-3)' }}>
-                <td colSpan={6} style={{ padding: '11px 14px', fontSize: '12px', fontWeight: 600, color: 'var(--text-2)' }}>
-                  Total activas ({filtradas.length}) · Canceladas mes: {canceladasMes.length}
+                <td colSpan={5} style={{ padding: '11px 14px', fontSize: '12px', fontWeight: 600, color: 'var(--text-2)' }}>
+                Total activas ({filtradas.length}) · Canceladas mes: {canceladasMes.length}
                 </td>
                 <td style={{ padding: '11px 14px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: '#059669' }}>
@@ -439,6 +460,17 @@ export default function VentaOrdenes() {
                   <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '2px' }}>
                     -{`$${Math.round(totalCanceladas).toLocaleString('es-CL')}`} cancelado
                   </div>
+                  <td style={{ padding: '11px 14px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#2563eb' }}>
+                        ${Math.round(
+                        filtradas.reduce((s, o) => {
+                            const suborden = o.sub_orden_id || o.orden_id
+                            return s + (liquidacionesMap[suborden] || 0)
+                        }, 0)
+                        ).toLocaleString('es-CL')}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>Pagado Paris</div>
+                    </td>
                 </td>
                 <td colSpan={2} />
               </tr>
