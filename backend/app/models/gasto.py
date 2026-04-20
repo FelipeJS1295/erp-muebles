@@ -30,6 +30,8 @@ class Gasto(Base):
     tipo = Column(SAEnum(TipoGastoEnum, name="tipogastoenum"), nullable=False)
     descripcion = Column(String(500), nullable=False)
     monto = Column(Float, nullable=False)
+    monto_pagado = Column(Float, nullable=False, default=0)
+    estado = Column(String(20), nullable=False, default='pendiente')
     fecha_creacion = Column(DateTime, server_default=func.now())
     fecha_actualizacion = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
