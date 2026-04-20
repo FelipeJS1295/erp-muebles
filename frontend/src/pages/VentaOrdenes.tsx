@@ -116,16 +116,15 @@ export default function VentaOrdenes() {
   useEffect(() => { cargar() }, [])
 
   // Órdenes del mes filtradas por fecha_creacion
-  const ordenesMes = useMemo(() => {
+    const ordenesMes = useMemo(() => {
     return ordenes.filter(o => {
-      const fechaRef = o.fecha_creacion
-        ? o.fecha_creacion.split('T')[0]
-        : o.fecha_despacho || ''
-      if (filtroDesde && fechaRef < filtroDesde) return false
-      if (filtroHasta && fechaRef > filtroHasta) return false
-      return true
+        const fechaRef = o.fecha_despacho || ''
+        if (!fechaRef) return false
+        if (filtroDesde && fechaRef < filtroDesde) return false
+        if (filtroHasta && fechaRef > filtroHasta) return false
+        return true
     })
-  }, [ordenes, filtroDesde, filtroHasta])
+    }, [ordenes, filtroDesde, filtroHasta])
 
   // Canceladas del mes (para el card)
   const canceladasMes = useMemo(() =>
