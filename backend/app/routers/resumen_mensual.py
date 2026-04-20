@@ -3,7 +3,7 @@ Router de Resumen Mensual RRHH
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, extract
+from sqlalchemy import select
 from datetime import date
 from app.db.base import get_db
 from app.models.trabajador import Trabajador
@@ -13,6 +13,7 @@ from app.models.dia_extra import DiaExtra
 from app.models.bono import Bono
 from app.models.dia_faltante import DiaFaltante
 from app.models.orden_trabajo import OrdenTrabajo
+from app.models.otro_descuento import OtroDescuento
 
 router = APIRouter(prefix="/api/v1/resumen-mensual", tags=["Resumen Mensual"])
 
@@ -23,12 +24,8 @@ CARGOS_PRODUCCION = ['costura', 'tapiceria', 'esqueleteria']
 async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db)):
     try:
         fecha_desde = date(anio, mes, 1)
-        if mes == 12:
-            fecha_hasta = date(anio + 1, 1, 1)
-        else:
-            fecha_hasta = date(anio, mes + 1, 1)
+        fecha_hasta = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
 
-        # Todos los trabajadores activos
         result = await db.execute(
             select(Trabajador).where(Trabajador.activo == 1).order_by(Trabajador.nombre_completo)
         )
@@ -47,7 +44,7 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
             rem = result_rem.scalar_one_or_none()
             sueldo_base_registrado = rem.sueldo_base if rem else 0
 
-            # Para cargos de producción el sueldo base es la suma de OTs del mes
+            # Producción para cargos costura/tapiceria/esqueleteria
             if t.cargo in CARGOS_PRODUCCION:
                 result_ots = await db.execute(
                     select(OrdenTrabajo).where(
@@ -65,7 +62,7 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                 sueldo_efectivo = sueldo_base_registrado
                 es_produccion = False
 
-            # Horas extras aprobadas del mes
+            # Horas extras aprobadas
             result_he = await db.execute(
                 select(HoraExtra).where(
                     HoraExtra.trabajador_id == t.id,
@@ -78,7 +75,7 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
             total_horas_extras = sum(h.monto_total for h in horas_extras)
             horas_extras_qty = sum(h.horas for h in horas_extras)
 
-            # Días extras aprobados del mes
+            # Días extras aprobados
             result_de = await db.execute(
                 select(DiaExtra).where(
                     DiaExtra.trabajador_id == t.id,
@@ -91,7 +88,7 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
             total_dias_extras = sum(d.monto for d in dias_extras)
             dias_extras_qty = len(dias_extras)
 
-            # Bonos aprobados del mes
+            # Bonos aprobados
             result_bonos = await db.execute(
                 select(Bono).where(
                     Bono.trabajador_id == t.id,
@@ -104,7 +101,7 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
             total_bonos = sum(b.monto for b in bonos)
             bonos_qty = len(bonos)
 
-            # Días faltantes del mes
+            # Días faltantes
             result_df = await db.execute(
                 select(DiaFaltante).where(
                     DiaFaltante.trabajador_id == t.id,
@@ -116,7 +113,38 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
             total_descuentos = sum(d.monto_descuento for d in dias_faltantes)
             dias_faltantes_qty = len(dias_faltantes)
 
-            total = sueldo_efectivo + total_horas_extras + total_dias_extras + total_bonos - total_descuentos
+            # Otros descuentos activos — se descuenta la cuota del mes
+            result_od = await db.execute(
+                select(OtroDescuento).where(
+                    OtroDescuento.trabajador_id == t.id,
+                    OtroDescuento.activo == 1,
+                    OtroDescuento.fecha_inicio <= fecha_hasta,
+                )
+            )
+            otros_desc = result_od.scalars().all()
+            total_otros_descuentos = sum(od.monto_cuota or 0 for od in otros_desc)
+            otros_desc_qty = len(otros_desc)
+            otros_desc_detalle = [
+                {
+                    "id": od.id,
+                    "tipo": od.tipo,
+                    "descripcion": od.descripcion,
+                    "documento": od.documento,
+                    "monto_cuota": od.monto_cuota,
+                    "cuotas_pagadas": od.cuotas_pagadas,
+                    "cuotas": od.cuotas,
+                }
+                for od in otros_desc
+            ]
+
+            total = (
+                sueldo_efectivo
+                + total_horas_extras
+                + total_dias_extras
+                + total_bonos
+                - total_descuentos
+                - total_otros_descuentos
+            )
 
             resumen.append({
                 "trabajador_id": t.id,
@@ -134,14 +162,23 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                 "total_bonos": round(total_bonos, 2),
                 "dias_faltantes_qty": dias_faltantes_qty,
                 "total_descuentos": round(total_descuentos, 2),
+                "otros_desc_qty": otros_desc_qty,
+                "total_otros_descuentos": round(total_otros_descuentos, 2),
+                "otros_desc_detalle": otros_desc_detalle,
                 "total": round(total, 2),
             })
+
+        # Totales separados producción vs resto
+        produccion = [r for r in resumen if r["es_produccion"]]
+        resto = [r for r in resumen if not r["es_produccion"]]
 
         return {
             "mes": mes,
             "anio": anio,
             "total_trabajadores": len(resumen),
             "total_planilla": round(sum(r["total"] for r in resumen), 2),
+            "total_produccion": round(sum(r["total"] for r in produccion), 2),
+            "total_resto": round(sum(r["total"] for r in resto), 2),
             "resumen": resumen,
         }
     except Exception as e:

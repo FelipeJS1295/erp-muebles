@@ -18,6 +18,7 @@ from app.routers.dias_extras import router as dias_extras_router
 from app.routers.horas_extras import router as horas_extras_router
 from app.routers.dias_faltantes import router as dias_faltantes_router
 from app.routers.resumen_mensual import router as resumen_mensual_router
+from app.routers.otros_descuentos import router as otros_descuentos_router
 from app.routers.bonos import router as bonos_router
 from app.routers.boletas import router as boletas_router
 from app.routers.api_clientes import router as api_clientes_router
@@ -111,6 +112,7 @@ app.include_router(dias_extras_router)
 app.include_router(bonos_router)
 app.include_router(dias_faltantes_router)
 app.include_router(resumen_mensual_router)
+app.include_router(otros_descuentos_router)
 
 # =============================================================================
 # Helper: Auto-crear producto interno
