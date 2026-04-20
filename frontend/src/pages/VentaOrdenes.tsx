@@ -45,12 +45,18 @@ function getEstadoUnificado(orden: any): string {
     if (fecha < hoy && activos.includes(orden.estado)) return 'Atrasada'
   }
   const mapa: Record<string, string> = {
+    // Walmart
     'Created': 'Nueva', 'Acknowledged': 'Nueva',
     'Shipped': 'Despachada', 'Cancelled': 'Cancelada',
+    // Paris
     'ready_to_ship': 'Nueva', 'awaiting_fulfillment': 'Nueva',
     'delivery_in_progress': 'Despachada', 'delivered': 'Despachada',
-    'deleted': 'Cancelada', 'pending_by_seller': 'Nueva',
-    'pending': 'Nueva', 'shipped': 'Despachada', 'canceled': 'Cancelada',
+    'deleted': 'Cancelada', 'cancelled': 'Cancelada',
+    'canceled_by_seller': 'Cancelada', 'canceled_by_customer': 'Cancelada',
+    'refused': 'Cancelada', 'incident': 'Cancelada',
+    // Ripley / Falabella
+    'pending_by_seller': 'Nueva', 'pending': 'Nueva',
+    'shipped': 'Despachada', 'canceled': 'Cancelada',
     'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
     'SHIPPING': 'Despachada', 'TO_COLLECT': 'Despachada',
     'RECEIVED': 'Despachada', 'CLOSED': 'Despachada',
