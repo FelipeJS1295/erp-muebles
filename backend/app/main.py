@@ -1039,13 +1039,14 @@ async def crear_pago_gasto(gasto_id: int, body: dict, db: AsyncSession = Depends
             monto=float(body["monto"]),
         )
         db.add(pago)
+        await db.flush()  # Para que el pago quede persistido antes de recalcular
 
-        # Recalcular monto pagado y estado
+        # Recalcular monto pagado sumando desde BD (ya incluye el nuevo)
         result_pagos = await db.execute(
             select(GastoPago).where(GastoPago.gasto_id == gasto_id)
         )
-        pagos_anteriores = result_pagos.scalars().all()
-        total_pagado = sum(p.monto for p in pagos_anteriores) + float(body["monto"])
+        todos_los_pagos = result_pagos.scalars().all()
+        total_pagado = sum(p.monto for p in todos_los_pagos)
 
         gasto.monto_pagado = total_pagado
         if total_pagado >= gasto.monto:
@@ -1060,6 +1061,8 @@ async def crear_pago_gasto(gasto_id: int, body: dict, db: AsyncSession = Depends
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
