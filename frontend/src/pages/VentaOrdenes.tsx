@@ -119,9 +119,9 @@ export default function VentaOrdenes() {
         // Mapa nro_suborden -> monto_a_pagar (solo ventas)
         const liqMap: Record<string, number> = {}
         for (const l of (resLiq.data.liquidaciones ?? [])) {
-        if (l.tipo === 'venta' && l.nro_suborden) {
-            liqMap[l.nro_suborden] = (liqMap[l.nro_suborden] || 0) + (l.monto_a_pagar ?? 0)
-        }
+        if (!l.nro_suborden) continue
+        if (l.tipo === 'despacho') continue  // no afecta nuestro monto
+        liqMap[l.nro_suborden] = (liqMap[l.nro_suborden] || 0) + (l.monto_a_pagar ?? 0)
         }
         setLiquidacionesMap(liqMap)
     } catch {
