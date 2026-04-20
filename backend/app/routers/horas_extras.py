@@ -80,7 +80,8 @@ async def crear_hora_extra(body: dict, db: AsyncSession = Depends(get_db)):
         sueldo_base = rem.sueldo_base
 
         # Fórmula: (Sueldo Base / 30 / 28) * 1.5
-        valor_hora = round((sueldo_base / 30 / 28) * 1.5, 2)
+        hora_ordinaria = (sueldo_base * 28) / (30 * 42 * 4)
+        valor_hora = round(hora_ordinaria * 1.5, 2)
         monto_total = round(valor_hora * horas, 2)
 
         he = HoraExtra(

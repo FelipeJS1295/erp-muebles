@@ -119,7 +119,8 @@ export default function HorasExtras() {
   useEffect(() => {
     const t = trabajadores.find(t => t.id === Number(form.trabajador_id))
     if (t?.sueldo_base && form.horas && !isNaN(Number(form.horas)) && Number(form.horas) > 0) {
-      const valor_hora = (t.sueldo_base / 30 / 28) * 1.5
+      const hora_ordinaria = (t.sueldo_base * 28) / (30 * 45 * 4)
+      const valor_hora = hora_ordinaria * 1.5
       const monto_total = valor_hora * Number(form.horas)
       setPreview({
         sueldo_base: t.sueldo_base,
@@ -420,7 +421,7 @@ export default function HorasExtras() {
                     ))}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '10px', textAlign: 'center' }}>
-                    Fórmula: (Sueldo Base / 30 / 28) × 1.5 × {form.horas} horas
+                    Fórmula: (Sueldo Base × 28) / (30 × 45 × 4) × 1.5 × {form.horas} horas
                   </div>
                 </div>
               )}
