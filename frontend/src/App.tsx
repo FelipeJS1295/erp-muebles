@@ -14,8 +14,9 @@ import OrdenesManual from './pages/OrdenesManual'
 import Clientes from './pages/Clientes'
 import ApiClientes from './pages/ApiClientes'
 import GastosMensuales from './pages/GastosMensuales'
+import Remuneraciones from './pages/Remuneraciones'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -92,6 +93,7 @@ export default function App() {
     // Página por defecto según módulo
     if (nuevoModulo === 'ventas') setPage('dashboard')
     if (nuevoModulo === 'contabilidad') setPage('ordenes-trabajo')
+    if (nuevoModulo === 'rrhh') setPage('remuneraciones')
     if (nuevoModulo === 'mantenedores') setPage('productos-internos')
   }
 
@@ -164,6 +166,14 @@ export default function App() {
             />
           </>}
 
+          {/* Módulo RRHH */}
+          {modulo === 'rrhh' && <>
+            <div style={s.sectionLabel}>RRHH</div>
+            <NavItem id="remuneraciones" label="Remuneraciones" active={page === 'remuneraciones'} onClick={() => setPage('remuneraciones')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>}
+            />
+          </>}
+
           {/* Módulo Mantenedores */}
           {modulo === 'mantenedores' && <>
             <div style={s.sectionLabel}>Catálogo</div>
@@ -232,6 +242,7 @@ export default function App() {
         {page === 'clientes' && <Clientes />}
         {page === 'api-clientes' && <ApiClientes />}
         {page === 'gastos' && <GastosMensuales />}
+        {page === 'remuneraciones' && <Remuneraciones />}
       </main>
     </div>
   )

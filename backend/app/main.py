@@ -1101,3 +1101,142 @@ async def eliminar_pago_gasto(gasto_id: int, pago_id: int, db: AsyncSession = De
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# =============================================================================
+# Remuneraciones
+# =============================================================================
+
+from app.models.remuneracion import Remuneracion, TipoContratoEnum
+from app.models.trabajador import Trabajador as TrabajadorModel
+
+@app.get("/api/v1/remuneraciones", tags=["Remuneraciones"])
+async def listar_remuneraciones(db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(
+            select(Remuneracion, TrabajadorModel)
+            .join(TrabajadorModel, Remuneracion.trabajador_id == TrabajadorModel.id)
+            .where(Remuneracion.activo == 1)
+            .order_by(TrabajadorModel.nombre_completo)
+        )
+        rows = result.all()
+        return {
+            "total": len(rows),
+            "remuneraciones": [
+                {
+                    "id": r.id,
+                    "trabajador_id": r.trabajador_id,
+                    "trabajador_nombre": t.nombre_completo,
+                    "trabajador_rut": t.rut,
+                    "trabajador_cargo": t.cargo,
+                    "sueldo_base": r.sueldo_base,
+                    "tipo": r.tipo,
+                    "fecha_creacion": r.fecha_creacion.isoformat() if r.fecha_creacion else None,
+                    "fecha_actualizacion": r.fecha_actualizacion.isoformat() if r.fecha_actualizacion else None,
+                }
+                for r, t in rows
+            ],
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.get("/api/v1/remuneraciones/trabajadores-sin-remuneracion", tags=["Remuneraciones"])
+async def trabajadores_sin_remuneracion(db: AsyncSession = Depends(get_db)):
+    try:
+        # Trabajadores que ya tienen remuneracion
+        result_con = await db.execute(
+            select(Remuneracion.trabajador_id).where(Remuneracion.activo == 1)
+        )
+        ids_con = [r[0] for r in result_con.all()]
+
+        # Trabajadores activos sin remuneracion
+        query = select(TrabajadorModel).where(TrabajadorModel.activo == 1)
+        if ids_con:
+            query = query.where(TrabajadorModel.id.notin_(ids_con))
+        query = query.order_by(TrabajadorModel.nombre_completo)
+
+        result = await db.execute(query)
+        trabajadores = result.scalars().all()
+        return {
+            "total": len(trabajadores),
+            "trabajadores": [
+                {
+                    "id": t.id,
+                    "nombre_completo": t.nombre_completo,
+                    "rut": t.rut,
+                    "cargo": t.cargo,
+                }
+                for t in trabajadores
+            ],
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/api/v1/remuneraciones", tags=["Remuneraciones"])
+async def crear_remuneracion(body: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        # Verificar que no tenga ya una remuneracion activa
+        result = await db.execute(
+            select(Remuneracion).where(
+                Remuneracion.trabajador_id == body["trabajador_id"],
+                Remuneracion.activo == 1,
+            )
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="El trabajador ya tiene una remuneración registrada")
+
+        rem = Remuneracion(
+            trabajador_id=int(body["trabajador_id"]),
+            sueldo_base=float(body["sueldo_base"]),
+            tipo=body["tipo"],
+            activo=1,
+        )
+        db.add(rem)
+        await db.commit()
+        await db.refresh(rem)
+        return {"id": rem.id, "mensaje": "Remuneración creada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.put("/api/v1/remuneraciones/{rem_id}", tags=["Remuneraciones"])
+async def actualizar_remuneracion(rem_id: int, body: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(Remuneracion).where(Remuneracion.id == rem_id))
+        rem = result.scalar_one_or_none()
+        if not rem:
+            raise HTTPException(status_code=404, detail="Remuneración no encontrada")
+        if "sueldo_base" in body:
+            rem.sueldo_base = float(body["sueldo_base"])
+        if "tipo" in body:
+            rem.tipo = body["tipo"]
+        await db.commit()
+        return {"mensaje": "Remuneración actualizada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.delete("/api/v1/remuneraciones/{rem_id}", tags=["Remuneraciones"])
+async def eliminar_remuneracion(rem_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(Remuneracion).where(Remuneracion.id == rem_id))
+        rem = result.scalar_one_or_none()
+        if not rem:
+            raise HTTPException(status_code=404, detail="Remuneración no encontrada")
+        await db.delete(rem)
+        await db.commit()
+        return {"mensaje": "Remuneración eliminada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

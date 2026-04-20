@@ -132,7 +132,7 @@ export default function Home({ onModulo }: { onModulo: (modulo: string) => void 
       nombre: 'RRHH',
       descripcion: 'Gestión de personal, liquidaciones y control de asistencia',
       color: '#7c3aed',
-      activo: false,
+      activo: true,
       icono: (
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
