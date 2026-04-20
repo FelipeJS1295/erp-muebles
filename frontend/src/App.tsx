@@ -19,8 +19,9 @@ import HorasExtras from './pages/HorasExtras'
 import DiasExtras from './pages/DiasExtras'
 import Bonos from './pages/Bonos'
 import DiasFaltantes from './pages/DiasFaltantes'
+import ResumenMensual from './pages/ResumenMensual'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -187,6 +188,10 @@ export default function App() {
             <NavItem id="dias-faltantes" label="Días Faltantes" active={page === 'dias-faltantes'} onClick={() => setPage('dias-faltantes')}
               icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>}
             />
+            <div style={s.sectionLabel}>Reportes</div>
+            <NavItem id="resumen-mensual" label="Resumen del Mes" active={page === 'resumen-mensual'} onClick={() => setPage('resumen-mensual')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>}
+            />
           </>}
 
           {/* Módulo Mantenedores */}
@@ -262,6 +267,7 @@ export default function App() {
         {page === 'dias-extras' && <DiasExtras />}
         {page === 'bonos' && <Bonos />}
         {page === 'dias-faltantes' && <DiasFaltantes />}
+        {page === 'resumen-mensual' && <ResumenMensual />}
       </main>
     </div>
   )
