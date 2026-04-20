@@ -67,10 +67,10 @@ async def listar_liquidaciones(
         rows = result.scalars().all()
 
         # Totales
-        total_ventas        = sum(r.monto_a_pagar or 0 for r in rows if r.tipo == TipoLiquidacionEnum.venta)
-        total_cobro_despacho = sum(r.monto_a_pagar or 0 for r in rows if r.tipo == TipoLiquidacionEnum.cobro_despacho)
-        total_devoluciones  = sum(r.monto_a_pagar or 0 for r in rows if r.tipo == TipoLiquidacionEnum.devolucion)
-        total_neto          = total_ventas + total_cobro_despacho + total_devoluciones
+        total_ventas         = sum(_clean_float(r.monto_a_pagar) for r in rows if r.tipo == TipoLiquidacionEnum.venta)
+        total_cobro_despacho = sum(_clean_float(r.monto_a_pagar) for r in rows if r.tipo == TipoLiquidacionEnum.cobro_despacho)
+        total_devoluciones   = sum(_clean_float(r.monto_a_pagar) for r in rows if r.tipo == TipoLiquidacionEnum.devolucion)
+        total_neto           = total_ventas + total_cobro_despacho + total_devoluciones
 
         return {
             "total": len(rows),
