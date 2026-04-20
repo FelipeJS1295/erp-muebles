@@ -20,6 +20,14 @@ TIPO_MAP = {
     'despacho':          TipoLiquidacionEnum.despacho,
 }
 
+def _clean_float(val) -> float:
+    if val is None: return 0.0
+    try:
+        import math
+        f = float(val)
+        if math.isnan(f) or math.isinf(f): return 0.0
+        return f
+    except: return 0.0
 
 def _safe_float(val) -> float:
     if val is None: return 0.0
@@ -80,9 +88,9 @@ async def listar_liquidaciones(
                     "orden_id":           r.orden_id,
                     "descripcion":        r.descripcion,
                     "tipo":               r.tipo,
-                    "monto":              r.monto or 0,
-                    "comision_pct":       r.comision_pct or 0,
-                    "monto_a_pagar":      r.monto_a_pagar or 0,
+                    "monto":              _clean_float(r.monto),
+                    "comision_pct":       _clean_float(r.comision_pct),
+                    "monto_a_pagar":      _clean_float(r.monto_a_pagar),
                     "fecha_transaccion":  r.fecha_transaccion.isoformat() if r.fecha_transaccion else None,
                     "archivo_origen":     r.archivo_origen,
                     "nro_solicitud":      r.nro_solicitud,
