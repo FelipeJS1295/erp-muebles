@@ -107,9 +107,10 @@ export default function VentaOrdenes() {
     const cargar = async () => {
     setLoading(true)
     try {
-        const [resOrdenes, resLiq] = await Promise.all([
-        api.get('/ordenes?limit=2000'),
-        api.get('/liquidaciones?marketplace=paris_chile'),
+        const [resOrdenes, resParisLiq, resWalmartLiq] = await Promise.all([
+          api.get('/ordenes?limit=2000'),
+          api.get('/liquidaciones?marketplace=paris_chile'),
+          api.get('/liquidaciones?marketplace=walmart_chile'),
         ])
         const raw = resOrdenes.data.ordenes ?? []
         setOrdenes(raw.map((o: any) => ({
@@ -118,11 +119,25 @@ export default function VentaOrdenes() {
         })))
         // Mapa nro_suborden -> monto_a_pagar (solo ventas)
         const liqMap: Record<string, number> = {}
-        for (const l of (resLiq.data.liquidaciones ?? [])) {
-        if (!l.nro_suborden) continue
-        if (l.tipo === 'despacho') continue  // no afecta nuestro monto
-        liqMap[l.nro_suborden] = (liqMap[l.nro_suborden] || 0) + (l.monto_a_pagar ?? 0)
+
+        // Paris
+        for (const l of (resParisLiq.data.liquidaciones ?? [])) {
+          if (!l.nro_suborden) continue
+          if (l.tipo === 'despacho') continue
+          const keys = [l.nro_suborden]
+          if (l.nro_suborden.length > 1) keys.push(l.nro_suborden.slice(0, -1))
+          for (const k of keys) {
+            liqMap[k] = (liqMap[k] || 0) + (l.monto_a_pagar ?? 0)
+          }
         }
+
+        // Walmart
+        for (const l of (resWalmartLiq.data.liquidaciones ?? [])) {
+          if (!l.nro_suborden) continue
+          if (l.tipo === 'despacho') continue
+          liqMap[l.nro_suborden] = (liqMap[l.nro_suborden] || 0) + (l.monto_a_pagar ?? 0)
+        }
+
         setLiquidacionesMap(liqMap)
     } catch {
         setOrdenes([])
