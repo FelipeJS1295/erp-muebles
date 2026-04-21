@@ -33,7 +33,12 @@ def _safe_float(val) -> float:
     if val is None: return 0.0
     try:
         import math
-        result = float(str(val).replace('$', '').replace('.', '').replace(',', '.').strip())
+        s = str(val).strip().replace('$', '').replace(' ', '')
+        # Si tiene coma decimal, es formato europeo
+        if ',' in s:
+            s = s.replace('.', '').replace(',', '.')
+        # Si NO tiene coma, el punto es decimal — no eliminar
+        result = float(s)
         if math.isnan(result) or math.isinf(result): return 0.0
         return result
     except: return 0.0
