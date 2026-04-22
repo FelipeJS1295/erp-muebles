@@ -11,7 +11,6 @@ interface Orden {
   raw: any
 }
 
-// Helper fuera del componente
 const parseFecha = (fecha: string) => {
   const [y, m, d] = fecha.split('-').map(Number)
   return new Date(y, m - 1, d)
@@ -26,11 +25,11 @@ function getEstadoUnificado(orden: any): string {
   const hoy = getHoy()
   if (orden.fecha_despacho) {
     const d = parseFecha(orden.fecha_despacho)
-        const activos = [
+    const activos = [
       'Created', 'Acknowledged',
       'ready_to_ship', 'awaiting_fulfillment',
       'pending', 'pending_by_seller',
-      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT','printed_label'
+      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT', 'printed_label'
     ]
     if (d < hoy && activos.includes(orden.estado)) return 'Atrasada'
   }
@@ -44,7 +43,7 @@ function getEstadoUnificado(orden: any): string {
     'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
     'SHIPPING': 'Nueva', 'TO_COLLECT': 'Nueva',
     'RECEIVED': 'Despachada', 'CLOSED': 'Despachada',
-    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada','printed_label': 'Nueva',
+    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada', 'printed_label': 'Nueva',
   }
   return mapa[orden.estado] || orden.estado
 }
@@ -52,6 +51,8 @@ function getEstadoUnificado(orden: any): string {
 export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], onClose: () => void }) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroMkt, setFiltroMkt] = useState('')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
   const [productosInternos, setProductosInternos] = useState<any[]>([])
   const [skusRetail, setSkusRetail] = useState<any[]>([])
 
@@ -66,8 +67,10 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
     const estado = getEstadoUnificado(o)
     if (!['Nueva', 'Atrasada'].includes(estado)) return false
     if (filtroMkt && o.marketplace !== filtroMkt) return false
+    if (fechaDesde && o.fecha_despacho && o.fecha_despacho < fechaDesde) return false
+    if (fechaHasta && o.fecha_despacho && o.fecha_despacho > fechaHasta) return false
     return true
-  }), [ordenes, filtroMkt])
+  }), [ordenes, filtroMkt, fechaDesde, fechaHasta])
 
   const fechas = useMemo(() => {
     const set = new Set<string>()
@@ -188,17 +191,17 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
       const sinEsqueleto = desc.startsWith('Sin esqueleto') || desc.startsWith('No cruzado')
       return `
         <tr>
-          <td style="padding:10px 14px;border-bottom:1px solid #eee;min-width:260px">
-            <div style="font-size:14px;font-weight:${sinEsqueleto ? '400' : '600'};color:${sinEsqueleto ? '#e85d04' : '#1a1a1a'}">${desc}</div>
+          <td class="td-prod">
+            <div style="font-size:13px;font-weight:${sinEsqueleto ? '600' : '700'};color:${sinEsqueleto ? '#c2410c' : '#000'}">${desc}</div>
           </td>
           ${fechas.map(f => {
             const val = fechaMap[f] || 0
             const d = parseFecha(f)
             const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-            const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
-            return `<td style="padding:10px 14px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;color:${color};font-weight:${val > 0 ? '700' : '400'};font-size:14px">${val === 0 ? '—' : val}</td>`
+            const color = val === 0 ? '#bbb' : diff < 0 ? '#b91c1c' : diff <= 1 ? '#b45309' : '#047857'
+            return `<td class="td-num" style="color:${color};font-weight:${val > 0 ? '800' : '400'}">${val === 0 ? '—' : val}</td>`
           }).join('')}
-          <td style="padding:10px 14px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;font-weight:700;font-size:14px;background:#f9f9f9">${totalProd}</td>
+          <td class="td-total">${totalProd}</td>
         </tr>
       `
     }).join('') : ''
@@ -210,30 +213,29 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
         Object.values(productos).forEach(fm => { totalesFinales[f] = (totalesFinales[f] || 0) + (fm[f] || 0) })
       })
       const filasMkt = Object.entries(productos).map(([key, fechaMap]) => {
-        const [nombre, sku] = key.split('|||')
+        const [nombre] = key.split('|||')
         const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
         return `
           <tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #eee;padding-left:24px">
-              <div style="font-size:12px;font-weight:500">${nombre}</div>
-              ${sku ? `<div style="font-size:10px;color:#888;font-family:monospace">${sku}</div>` : ''}
+            <td class="td-prod" style="padding-left:20px">
+              <div style="font-size:13px;font-weight:700;color:#000">${nombre}</div>
             </td>
             ${fechas.map(f => {
               const val = fechaMap[f] || 0
               const d = parseFecha(f)
               const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-              const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
-              return `<td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;color:${color};font-weight:${val > 0 ? '600' : '400'};font-size:13px">${val === 0 ? '—' : val}</td>`
+              const color = val === 0 ? '#bbb' : diff < 0 ? '#b91c1c' : diff <= 1 ? '#b45309' : '#047857'
+              return `<td class="td-num" style="color:${color};font-weight:${val > 0 ? '800' : '400'}">${val === 0 ? '—' : val}</td>`
             }).join('')}
-            <td style="padding:8px 12px;border-bottom:1px solid #eee;border-left:1px solid #eee;text-align:center;font-weight:700;background:#f9f9f9">${totalProd}</td>
+            <td class="td-total">${totalProd}</td>
           </tr>
         `
       }).join('')
       return `
-        <tr style="background:#f0f0f0">
-          <td style="padding:9px 12px;border-bottom:1px solid #ddd;border-top:2px solid #ddd;font-weight:700">${mkt} (${totalMkt})</td>
-          ${fechas.map(() => `<td style="border-left:1px solid #eee;background:#f0f0f0"></td>`).join('')}
-          <td style="padding:9px 12px;text-align:center;font-weight:700;background:#f0f0f0;border-left:1px solid #eee">${totalMkt}</td>
+        <tr class="tr-mkt">
+          <td class="td-prod" style="font-weight:800;font-size:13px;color:#000;letter-spacing:0.3px">${mkt} (${totalMkt})</td>
+          ${fechas.map(() => `<td style="border-left:1.5px solid #ccc;background:#e8e8e8"></td>`).join('')}
+          <td class="td-total" style="font-size:14px">${totalMkt}</td>
         </tr>
         ${filasMkt}
       `
@@ -241,22 +243,65 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
 
     const totalFinal = Object.values(totalesFinales).reduce((a, b) => a + b, 0)
 
+    const filtroTexto = [
+      fechaDesde ? `Desde: ${fechaDesde}` : '',
+      fechaHasta ? `Hasta: ${fechaHasta}` : '',
+      filtroMkt ? `Marketplace: ${filtroMkt}` : '',
+    ].filter(Boolean).join(' · ')
+
     ventana.document.write(`
       <html>
       <head>
         <title>${titulo} - Jerk Home</title>
         <style>
-          * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
-          body { padding:24px; color:#1a1a1a; }
-          .header { display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:2px solid #1a1a1a; padding-bottom:14px; }
-          .empresa { font-size:20px; font-weight:700; }
-          .sub { font-size:12px; color:#666; margin-top:4px; }
-          table { width:100%; border-collapse:collapse; border:1px solid #ddd; }
-          th { padding:10px 14px; background:#1a1a1a; color:white; font-size:12px; white-space:nowrap; border-left:1px solid #444; }
-          th:first-child { text-align:left; border-left:none; }
-          .legend { display:flex; gap:16px; margin-bottom:14px; font-size:11px; color:#666; }
-          .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-          @media print { body { padding:12px; } }
+          * { margin:0; padding:0; box-sizing:border-box; font-family:'Helvetica Neue',Arial,sans-serif; }
+          body { padding:20px; color:#000; background:#fff; }
+          .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:2.5px solid #000; padding-bottom:12px; }
+          .empresa { font-size:18px; font-weight:900; letter-spacing:-0.5px; color:#000; }
+          .sub { font-size:11px; color:#444; margin-top:4px; font-weight:600; }
+          .filtro-info { font-size:10px; color:#666; margin-top:3px; font-weight:500; }
+          table { width:100%; border-collapse:collapse; border:2px solid #000; }
+          th {
+            padding:9px 12px;
+            background:#000;
+            color:#fff;
+            font-size:11px;
+            font-weight:800;
+            white-space:nowrap;
+            border-left:1.5px solid #333;
+            letter-spacing:0.3px;
+          }
+          th:first-child { text-align:left; border-left:none; min-width:220px; }
+          .td-prod {
+            padding:8px 12px;
+            border-bottom:1px solid #ddd;
+            border-right:1.5px solid #ccc;
+          }
+          .td-num {
+            padding:8px 10px;
+            border-bottom:1px solid #ddd;
+            border-left:1.5px solid #ccc;
+            text-align:center;
+            font-size:13px;
+          }
+          .td-total {
+            padding:8px 12px;
+            border-bottom:1px solid #ddd;
+            border-left:2px solid #000;
+            text-align:center;
+            font-weight:900;
+            font-size:13px;
+            background:#f0f0f0;
+            color:#000;
+          }
+          .tr-mkt { background:#e8e8e8; border-top:2px solid #000; border-bottom:1px solid #bbb; }
+          .tr-total { background:#d4d4d4; border-top:2.5px solid #000; }
+          .legend { display:flex; gap:16px; margin-bottom:12px; font-size:11px; font-weight:700; }
+          .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+          @media print {
+            body { padding:10px; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          }
         </style>
       </head>
       <body>
@@ -267,38 +312,41 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
               ${new Date().toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
               · ${ordenesFiltradas.length} órdenes · ${totalFinal} unidades
             </div>
+            ${filtroTexto ? `<div class="filtro-info">${filtroTexto}</div>` : ''}
           </div>
-        </div>
-        <div class="legend">
-          <span><span class="dot" style="background:#dc2626"></span>Atrasada</span>
-          <span><span class="dot" style="background:#d97706"></span>Urgente</span>
-          <span><span class="dot" style="background:#059669"></span>Normal</span>
+          <div>
+            <div class="legend">
+              <span><span class="dot" style="background:#b91c1c"></span>Atrasada</span>
+              <span><span class="dot" style="background:#b45309"></span>Urgente</span>
+              <span><span class="dot" style="background:#047857"></span>Normal</span>
+            </div>
+          </div>
         </div>
         <table>
           <thead>
             <tr>
-              <th style="min-width:260px">${esEsqueletos ? 'Descripción Esqueleto' : 'Marketplace / Producto'}</th>
+              <th>${esEsqueletos ? 'Descripción Esqueleto' : 'Marketplace / Producto'}</th>
               ${fechas.map(f => {
                 const d = parseFecha(f)
                 const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-                const color = diff < 0 ? '#ef4444' : diff <= 1 ? '#f59e0b' : 'white'
-                return `<th style="text-align:center;color:${color}">${f}<br><span style="font-size:9px;font-weight:400">${diff < 0 ? '⚠ Atrasada' : diff === 0 ? 'Hoy' : d.toLocaleDateString('es-CL',{weekday:'short'})}</span></th>`
+                const color = diff < 0 ? '#fca5a5' : diff <= 1 ? '#fcd34d' : '#fff'
+                return `<th style="text-align:center;color:${color}">${f}<br><span style="font-size:9px;font-weight:700">${diff < 0 ? '⚠ ATRASADA' : diff === 0 ? 'HOY' : d.toLocaleDateString('es-CL',{weekday:'short'}).toUpperCase()}</span></th>`
               }).join('')}
-              <th style="text-align:center">Total</th>
+              <th style="text-align:center;border-left:2px solid #444">Total</th>
             </tr>
           </thead>
           <tbody>
             ${esEsqueletos ? filasEsqueleto : filasNormal}
-            <tr style="background:#e8e8e8;border-top:2px solid #1a1a1a">
-              <td style="padding:10px 14px;font-weight:700;font-size:13px">Total general</td>
+            <tr class="tr-total">
+              <td class="td-prod" style="font-weight:900;font-size:13px;color:#000;letter-spacing:0.3px">TOTAL GENERAL</td>
               ${fechas.map(f => {
                 const val = totalesFinales[f] || 0
                 const d = parseFecha(f)
                 const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-                const color = val === 0 ? '#ccc' : diff < 0 ? '#dc2626' : diff <= 1 ? '#d97706' : '#059669'
-                return `<td style="padding:10px 14px;text-align:center;font-weight:700;color:${color};border-left:1px solid #ddd;font-size:14px">${val === 0 ? '—' : val}</td>`
+                const color = val === 0 ? '#bbb' : diff < 0 ? '#b91c1c' : diff <= 1 ? '#b45309' : '#047857'
+                return `<td class="td-num" style="font-weight:900;font-size:14px;color:${color};background:#d4d4d4">${val === 0 ? '—' : val}</td>`
               }).join('')}
-              <td style="padding:10px 14px;text-align:center;font-weight:700;font-size:15px;border-left:1px solid #ddd">${totalFinal}</td>
+              <td class="td-total" style="font-size:15px;font-weight:900;background:#d4d4d4">${totalFinal}</td>
             </tr>
           </tbody>
         </table>
@@ -324,6 +372,9 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
     borderRadius: '7px', padding: '6px 10px', fontSize: '12px',
     color: 'var(--text-1)', outline: 'none', cursor: 'pointer',
   }
+  const labelStyle: React.CSSProperties = {
+    fontSize: '11px', color: 'var(--text-3)', marginBottom: '3px', display: 'block',
+  }
 
   return (
     <div onClick={onClose} style={{
@@ -336,34 +387,84 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
         border: '0.5px solid var(--border)', width: '100%', maxWidth: '1100px',
         animation: 'fadeIn 0.15s ease',
       }}>
+        {/* Header */}
         <div style={{
           padding: '16px 20px', borderBottom: '0.5px solid var(--border)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           gap: '16px', flexWrap: 'wrap',
         }}>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>Vista Maestra</div>
             <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>
               Órdenes activas agrupadas por producto y fecha de despacho
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+
+            {/* Filtros */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              {/* Búsqueda */}
               <div style={{ position: 'relative' }}>
+                <label style={labelStyle}>Buscar</label>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-3)" strokeWidth="1.3"
-                  style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }}>
+                  style={{ position: 'absolute', left: '8px', bottom: '7px' }}>
                   <circle cx="5" cy="5" r="4"/><path d="M9 9l2 2"/>
                 </svg>
-                <input placeholder="Buscar producto o SKU..." value={busqueda}
+                <input placeholder="Producto..." value={busqueda}
                   onChange={e => setBusqueda(e.target.value)}
-                  style={{ ...fS, paddingLeft: '26px', width: '200px' }} />
+                  style={{ ...fS, paddingLeft: '26px', width: '180px' }} />
               </div>
-              <select value={filtroMkt} onChange={e => setFiltroMkt(e.target.value)} style={fS}>
-                <option value="">Todos los marketplaces</option>
-                <option value="walmart_chile">Walmart Chile</option>
-                <option value="paris_chile">Paris Chile</option>
-                <option value="falabella">Falabella Chile</option>
-                <option value="ripley">Ripley Chile</option>
-              </select>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px', marginLeft: '8px' }}>
+
+              {/* Marketplace */}
+              <div>
+                <label style={labelStyle}>Marketplace</label>
+                <select value={filtroMkt} onChange={e => setFiltroMkt(e.target.value)} style={fS}>
+                  <option value="">Todos</option>
+                  <option value="walmart_chile">Walmart Chile</option>
+                  <option value="paris_chile">Paris Chile</option>
+                  <option value="falabella">Falabella Chile</option>
+                  <option value="ripley">Ripley Chile</option>
+                </select>
+              </div>
+
+              {/* Fecha Desde */}
+              <div>
+                <label style={labelStyle}>Desde</label>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={e => setFechaDesde(e.target.value)}
+                  style={{ ...fS, width: '140px' }}
+                />
+              </div>
+
+              {/* Fecha Hasta */}
+              <div>
+                <label style={labelStyle}>Hasta</label>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={e => setFechaHasta(e.target.value)}
+                  style={{ ...fS, width: '140px' }}
+                />
+              </div>
+
+              {/* Limpiar filtros */}
+              {(fechaDesde || fechaHasta || filtroMkt || busqueda) && (
+                <div>
+                  <label style={labelStyle}>&nbsp;</label>
+                  <button
+                    onClick={() => { setFechaDesde(''); setFechaHasta(''); setFiltroMkt(''); setBusqueda('') }}
+                    style={{
+                      ...fS, color: 'var(--danger)', borderColor: 'var(--danger)',
+                      background: 'transparent', cursor: 'pointer',
+                    }}
+                  >
+                    ✕ Limpiar
+                  </button>
+                </div>
+              )}
+
+              {/* Leyenda */}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px', marginLeft: '4px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} />
                 <span style={{ color: 'var(--text-3)' }}>Atrasada</span>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--warning)', display: 'inline-block', marginLeft: '8px' }} />
@@ -373,6 +474,8 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
               </div>
             </div>
           </div>
+
+          {/* Botones derecha */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
             <button onClick={() => imprimirMaestra(false)} style={{
               padding: '7px 14px', borderRadius: '7px',
@@ -392,6 +495,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
           </div>
         </div>
 
+        {/* Tabla */}
         <div style={{ overflowX: 'auto', padding: '16px 20px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', border: '0.5px solid var(--border)' }}>
             <thead>
@@ -434,7 +538,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
                       <td style={{ ...tdM, background: 'var(--bg-3)', fontWeight: 700, color: 'var(--text-1)' }}>{totalMkt}</td>
                     </tr>
                     {Object.entries(productos).map(([key, fechaMap]) => {
-                      const [nombre, sku] = key.split('|||')
+                      const [nombre] = key.split('|||')
                       const totalProd = Object.values(fechaMap).reduce((a, b) => a + b, 0)
                       return (
                         <tr key={key}
@@ -443,7 +547,6 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
                           style={{ transition: 'background 0.1s' }}>
                           <td style={{ ...tdM, textAlign: 'left', paddingLeft: '24px' }}>
                             <div style={{ fontSize: '12px', color: 'var(--text-1)', fontWeight: 500 }}>{nombre}</div>
-                            {sku && <div style={{ fontSize: '10px', color: 'var(--text-4)', fontFamily: 'monospace', marginTop: '1px' }}>{sku}</div>}
                           </td>
                           {fechas.map(f => {
                             const val = fechaMap[f] || 0
