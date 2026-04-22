@@ -24,8 +24,9 @@ import OtrosDescuentos from './pages/OtrosDescuentos'
 import VentaOrdenes from './pages/VentaOrdenes'
 import LiquidacionParis from './pages/LiquidacionParis'
 import LiquidacionWalmart from './pages/LiquidacionWalmart'
+import Anticipos from './pages/Anticipos'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes' | 'liquidacion-paris' | 'liquidacion-walmart'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes' | 'liquidacion-paris' | 'liquidacion-walmart' | 'anticipos'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -204,6 +205,9 @@ export default function App() {
             <NavItem id="otros-descuentos" label="Otros Descuentos" active={page === 'otros-descuentos'} onClick={() => setPage('otros-descuentos')}
               icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/><line x1="4" y1="4" x2="20" y2="20"/></svg>}
             />
+            <NavItem id="anticipos" label="Anticipos" active={page === 'anticipos'} onClick={() => setPage('anticipos')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>}
+            />
             <div style={s.sectionLabel}>Reportes</div>
             <NavItem id="resumen-mensual" label="Resumen del Mes" active={page === 'resumen-mensual'} onClick={() => setPage('resumen-mensual')}
               icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>}
@@ -288,6 +292,7 @@ export default function App() {
         {page === 'venta-ordenes' && <VentaOrdenes />}
         {page === 'liquidacion-paris' && <LiquidacionParis />}
         {page === 'liquidacion-walmart' && <LiquidacionWalmart />}
+        {page === 'anticipos' && <Anticipos />}
       </main>
     </div>
   )
