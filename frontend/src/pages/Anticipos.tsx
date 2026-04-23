@@ -119,7 +119,6 @@ export default function Anticipos() {
 
   useEffect(() => { cargar() }, [mes, anio, filtroEstado])
 
-  // Selección
   const toggleSeleccion = (id: number) => {
     setSeleccionados(prev => {
       const next = new Set(prev)
@@ -136,7 +135,6 @@ export default function Anticipos() {
     }
   }
 
-  // Modal nuevo
   const abrirNuevo = async () => {
     setForm({ trabajador_id: '', fecha: new Date().toISOString().split('T')[0], monto: '', observacion: '' })
     setError('')
@@ -164,7 +162,6 @@ export default function Anticipos() {
     }
   }
 
-  // Bulk estado
   const guardarBulk = async () => {
     setSavingBulk(true)
     try {
@@ -203,23 +200,11 @@ export default function Anticipos() {
   const totalPagado    = filtrados.filter(a => a.estado === 'pagado').reduce((s, a) => s + a.monto, 0)
   const totalPendiente = filtrados.filter(a => a.estado === 'pendiente').reduce((s, a) => s + a.monto, 0)
 
-  const todosSel = filtrados.length > 0 && seleccionados.size === filtrados.length
+  const todosSel   = filtrados.length > 0 && seleccionados.size === filtrados.length
   const algunosSel = seleccionados.size > 0 && !todosSel
 
-  // Resumen por trabajador
-  const porTrabajador = Object.values(
-    filtrados.reduce((acc, a) => {
-      if (!acc[a.trabajador_id]) {
-        acc[a.trabajador_id] = { nombre: a.trabajador_nombre, cargo: a.trabajador_cargo, total: 0, cantidad: 0 }
-      }
-      acc[a.trabajador_id].total += a.monto
-      acc[a.trabajador_id].cantidad++
-      return acc
-    }, {} as Record<number, { nombre: string; cargo: string; total: number; cantidad: number }>)
-  ).sort((a, b) => b.total - a.total)
-
   return (
-    <div style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
@@ -239,9 +224,9 @@ export default function Anticipos() {
       {/* Cards resumen */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
-          { label: 'Total anticipos',  valor: `-$${Math.round(totalMes).toLocaleString('es-CL')}`,       color: '#dc2626' },
-          { label: 'Pagado',           valor: `-$${Math.round(totalPagado).toLocaleString('es-CL')}`,    color: '#059669' },
-          { label: 'Pendiente',        valor: `-$${Math.round(totalPendiente).toLocaleString('es-CL')}`, color: '#d97706' },
+          { label: 'Total anticipos', valor: `-$${Math.round(totalMes).toLocaleString('es-CL')}`,       color: '#dc2626' },
+          { label: 'Pagado',          valor: `-$${Math.round(totalPagado).toLocaleString('es-CL')}`,    color: '#059669' },
+          { label: 'Pendiente',       valor: `-$${Math.round(totalPendiente).toLocaleString('es-CL')}`, color: '#d97706' },
         ].map(c => (
           <div key={c.label} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{c.label}</div>
@@ -250,7 +235,7 @@ export default function Anticipos() {
         ))}
       </div>
 
-      {/* Selector período + filtros */}
+      {/* Filtros */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px',
         background: 'var(--bg-2)', border: '0.5px solid var(--border)',
@@ -268,7 +253,6 @@ export default function Anticipos() {
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
 
-        {/* Filtro estado */}
         {['', 'pendiente', 'pagado', 'rechazado'].map(e => (
           <button key={e} onClick={() => setFiltroEstado(e)} style={{
             padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
@@ -280,7 +264,6 @@ export default function Anticipos() {
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
 
-        {/* Búsqueda */}
         <div style={{ position: 'relative' }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-3)" strokeWidth="1.3"
             style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)' }}>
@@ -291,7 +274,6 @@ export default function Anticipos() {
             style={{ padding: '6px 10px 6px 26px', borderRadius: '7px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', fontSize: '12px', outline: 'none', width: '200px' }} />
         </div>
 
-        {/* Acción bulk */}
         {seleccionados.size > 0 && (
           <>
             <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
@@ -310,147 +292,105 @@ export default function Anticipos() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', alignItems: 'start' }}>
-
-        {/* Tabla */}
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-          {loading ? (
-            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>Cargando...</div>
-          ) : filtrados.length === 0 ? (
-            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
-              No hay anticipos para este período
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                  {/* Check todos */}
-                  <th style={{ padding: '10px 14px', background: 'var(--bg-3)', width: '40px' }}>
-                    <input type="checkbox"
-                      checked={todosSel}
-                      ref={el => { if (el) el.indeterminate = algunosSel }}
-                      onChange={toggleTodos}
-                      style={{ cursor: 'pointer', width: '14px', height: '14px' }}
-                    />
-                  </th>
-                  {['Trabajador', 'Cargo', 'Fecha', 'Monto', 'Estado', 'Tipo Pago', 'Observación', ''].map(h => (
-                    <th key={h} style={{
-                      padding: '10px 14px', textAlign: 'left', fontSize: '11px',
-                      fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase',
-                      letterSpacing: '0.05em', background: 'var(--bg-3)',
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((a, i) => {
-                  const cargoCfg = CARGO_CONFIG[a.trabajador_cargo] ?? { bg: 'var(--bg-3)', color: 'var(--text-3)' }
-                  const estCfg  = ESTADO_CONFIG[a.estado] ?? ESTADO_CONFIG.pendiente
-                  const isSel   = seleccionados.has(a.id)
-                  return (
-                    <tr key={a.id}
-                      style={{
-                        borderBottom: i < filtrados.length - 1 ? '0.5px solid var(--border)' : 'none',
-                        background: isSel ? 'var(--accent)08' : 'transparent',
-                      }}
-                      onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-3)' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isSel ? 'var(--accent)08' : 'transparent' }}
-                    >
-                      {/* Checkbox */}
-                      <td style={{ padding: '12px 14px' }}>
-                        <input type="checkbox" checked={isSel} onChange={() => toggleSeleccion(a.id)}
-                          style={{ cursor: 'pointer', width: '14px', height: '14px' }} />
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-1)' }}>{a.trabajador_nombre}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'monospace' }}>{a.trabajador_rut}</div>
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, background: cargoCfg.bg, color: cargoCfg.color }}>
-                          {a.trabajador_cargo ? a.trabajador_cargo.charAt(0).toUpperCase() + a.trabajador_cargo.slice(1) : '—'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
-                        {new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-CL')}
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#dc2626', background: '#dc262618', padding: '3px 10px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
-                          -${Math.round(a.monto).toLocaleString('es-CL')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, background: estCfg.bg, color: estCfg.color }}>
-                          {estCfg.label}
-                        </span>
-                        {a.fecha_pago && (
-                          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>
-                            {new Date(a.fecha_pago + 'T00:00:00').toLocaleDateString('es-CL')}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)' }}>
-                        {a.tipo_pago ? TIPO_PAGO_CONFIG[a.tipo_pago]?.label : <span style={{ color: 'var(--text-3)' }}>—</span>}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {a.observacion || <span style={{ color: 'var(--text-3)' }}>—</span>}
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <button onClick={() => setConfirmDelete(a.id)} style={{
-                          padding: '4px 10px', borderRadius: '6px', fontSize: '12px',
-                          border: '0.5px solid var(--danger-bg)', background: 'var(--danger-bg)',
-                          color: 'var(--danger)', cursor: 'pointer',
-                        }}>Eliminar</button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-3)' }}>
-                  <td colSpan={4} style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)' }}>
-                    Total ({filtrados.length})
-                    {seleccionados.size > 0 && <span style={{ color: '#2563eb', marginLeft: '8px' }}>· {seleccionados.size} seleccionados</span>}
-                  </td>
-                  <td colSpan={5} style={{ padding: '12px 14px', fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
-                    -${Math.round(totalMes).toLocaleString('es-CL')}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </div>
-
-        {/* Panel resumen por trabajador */}
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
-            Por trabajador
+      {/* Tabla */}
+      <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>Cargando...</div>
+        ) : filtrados.length === 0 ? (
+          <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
+            No hay anticipos para este período
           </div>
-          {porTrabajador.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>Sin datos</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {porTrabajador.map(t => {
-                const pct = totalMes > 0 ? (t.total / totalMes) * 100 : 0
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                <th style={{ padding: '10px 14px', background: 'var(--bg-3)', width: '40px' }}>
+                  <input type="checkbox"
+                    checked={todosSel}
+                    ref={el => { if (el) el.indeterminate = algunosSel }}
+                    onChange={toggleTodos}
+                    style={{ cursor: 'pointer', width: '14px', height: '14px' }}
+                  />
+                </th>
+                {['Trabajador', 'Cargo', 'Fecha', 'Monto', 'Estado', 'Tipo Pago', 'Fecha Pago', 'Observación', ''].map(h => (
+                  <th key={h} style={{
+                    padding: '10px 14px', textAlign: 'left', fontSize: '11px',
+                    fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase',
+                    letterSpacing: '0.05em', background: 'var(--bg-3)',
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.map((a, i) => {
+                const cargoCfg = CARGO_CONFIG[a.trabajador_cargo] ?? { bg: 'var(--bg-3)', color: 'var(--text-3)' }
+                const estCfg   = ESTADO_CONFIG[a.estado] ?? ESTADO_CONFIG.pendiente
+                const isSel    = seleccionados.has(a.id)
                 return (
-                  <div key={t.nombre}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-1)' }}>{t.nombre}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{t.cantidad} anticipo{t.cantidad !== 1 ? 's' : ''}</div>
-                      </div>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>
-                        -${Math.round(t.total).toLocaleString('es-CL')}
+                  <tr key={a.id}
+                    style={{ borderBottom: i < filtrados.length - 1 ? '0.5px solid var(--border)' : 'none', background: isSel ? '#2563eb08' : 'transparent' }}
+                    onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-3)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isSel ? '#2563eb08' : 'transparent' }}
+                  >
+                    <td style={{ padding: '12px 14px' }}>
+                      <input type="checkbox" checked={isSel} onChange={() => toggleSeleccion(a.id)}
+                        style={{ cursor: 'pointer', width: '14px', height: '14px' }} />
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-1)' }}>{a.trabajador_nombre}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'monospace' }}>{a.trabajador_rut}</div>
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, background: cargoCfg.bg, color: cargoCfg.color }}>
+                        {a.trabajador_cargo ? a.trabajador_cargo.charAt(0).toUpperCase() + a.trabajador_cargo.slice(1) : '—'}
                       </span>
-                    </div>
-                    <div style={{ height: '4px', background: 'var(--bg-3)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: '#dc2626', borderRadius: '4px', transition: 'width 0.3s' }} />
-                    </div>
-                  </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                      {new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-CL')}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#dc2626', background: '#dc262618', padding: '3px 10px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
+                        -${Math.round(a.monto).toLocaleString('es-CL')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, background: estCfg.bg, color: estCfg.color }}>
+                        {estCfg.label}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)' }}>
+                      {a.tipo_pago ? TIPO_PAGO_CONFIG[a.tipo_pago]?.label : <span style={{ color: 'var(--text-3)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                      {a.fecha_pago ? new Date(a.fecha_pago + 'T00:00:00').toLocaleDateString('es-CL') : <span style={{ color: 'var(--text-3)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.observacion || <span style={{ color: 'var(--text-3)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <button onClick={() => setConfirmDelete(a.id)} style={{
+                        padding: '4px 10px', borderRadius: '6px', fontSize: '12px',
+                        border: '0.5px solid var(--danger-bg)', background: 'var(--danger-bg)',
+                        color: 'var(--danger)', cursor: 'pointer',
+                      }}>Eliminar</button>
+                    </td>
+                  </tr>
                 )
               })}
-            </div>
-          )}
-        </div>
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-3)' }}>
+                <td colSpan={4} style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)' }}>
+                  Total ({filtrados.length})
+                  {seleccionados.size > 0 && <span style={{ color: '#2563eb', marginLeft: '8px' }}>· {seleccionados.size} seleccionados</span>}
+                </td>
+                <td colSpan={6} style={{ padding: '12px 14px', fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
+                  -${Math.round(totalMes).toLocaleString('es-CL')}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        )}
       </div>
 
       {/* ── Modal nuevo ──────────────────────────────────────────────────────── */}
@@ -511,7 +451,6 @@ export default function Anticipos() {
             <div style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '20px' }}>
               Cambia el estado y forma de pago de los anticipos seleccionados
             </div>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 {lbl('Nuevo estado')}
@@ -530,7 +469,6 @@ export default function Anticipos() {
                   })}
                 </div>
               </div>
-
               {bulkEstado === 'pagado' && <>
                 <div>
                   {lbl('Tipo de pago')}
@@ -548,12 +486,10 @@ export default function Anticipos() {
                 </div>
                 <div>
                   {lbl('Fecha de pago')}
-                  <input type="date" value={bulkFechaPago} onChange={e => setBulkFechaPago(e.target.value)}
-                    style={IS} />
+                  <input type="date" value={bulkFechaPago} onChange={e => setBulkFechaPago(e.target.value)} style={IS} />
                 </div>
               </>}
             </div>
-
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button onClick={() => setModalBulk(false)} style={{ padding: '9px 16px', borderRadius: '8px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={guardarBulk} disabled={savingBulk} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', opacity: savingBulk ? 0.6 : 1 }}>
