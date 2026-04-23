@@ -15,14 +15,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column('anticipos', sa.Column('estado', sa.Enum(
-        'pendiente', 'pagado', 'rechazado',
-        name='estadoanticipooenum'
-    ), nullable=False, server_default='pendiente'))
-    op.add_column('anticipos', sa.Column('tipo_pago', sa.Enum(
-        'efectivo', 'cheque', 'transferencia',
-        name='tipopagoanticipooenum'
-    ), nullable=True))
+    # Crear los tipos enum primero
+    op.execute("CREATE TYPE estadoanticipooenum AS ENUM ('pendiente', 'pagado', 'rechazado')")
+    op.execute("CREATE TYPE tipopagoanticipooenum AS ENUM ('efectivo', 'cheque', 'transferencia')")
+
+    op.add_column('anticipos', sa.Column('estado',
+        sa.Enum('pendiente', 'pagado', 'rechazado', name='estadoanticipooenum', create_type=False),
+        nullable=False, server_default='pendiente'
+    ))
+    op.add_column('anticipos', sa.Column('tipo_pago',
+        sa.Enum('efectivo', 'cheque', 'transferencia', name='tipopagoanticipooenum', create_type=False),
+        nullable=True
+    ))
     op.add_column('anticipos', sa.Column('fecha_pago', sa.Date(), nullable=True))
 
 
