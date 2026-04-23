@@ -203,6 +203,88 @@ export default function Anticipos() {
   const todosSel   = filtrados.length > 0 && seleccionados.size === filtrados.length
   const algunosSel = seleccionados.size > 0 && !todosSel
 
+  const imprimir = () => {
+  const aImprimir = seleccionados.size > 0
+    ? filtrados.filter(a => seleccionados.has(a.id))
+    : filtrados
+
+  const ventana = window.open('', '_blank')
+  if (!ventana) return
+
+  const totalImprimir = aImprimir.reduce((s, a) => s + a.monto, 0)
+
+  ventana.document.write(`
+    <html><head>
+      <title>Anticipos ${MESES[mes-1]} ${anio}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+        body { padding:32px; color:#1a1a1a; font-size:12px; }
+        h1 { font-size:20px; margin-bottom:4px; }
+        .sub { color:#666; margin-bottom:24px; font-size:12px; }
+        table { width:100%; border-collapse:collapse; }
+        th { background:#1a1a1a; color:#fff; padding:8px 10px; text-align:left; font-size:10px; text-transform:uppercase; }
+        td { padding:8px 10px; border-bottom:1px solid #eee; font-size:11px; }
+        tr:nth-child(even) td { background:#f9f9f9; }
+        .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:9px; font-weight:600; }
+        .pendiente { background:#fff7ed; color:#d97706; }
+        .pagado    { background:#f0fdf4; color:#059669; }
+        .rechazado { background:#fef2f2; color:#dc2626; }
+        .total-row td { font-weight:700; background:#f0f0f0 !important; font-size:12px; }
+        .neg { color:#dc2626; font-weight:700; }
+        .footer { margin-top:32px; border-top:1px solid #ddd; padding-top:12px; font-size:10px; color:#888; text-align:center; }
+        @media print { body { padding:16px; } }
+      </style>
+    </head><body>
+      <h1>Anticipos de Sueldo</h1>
+      <div class="sub">
+        ${MESES[mes-1]} ${anio}
+        ${seleccionados.size > 0 ? ` · ${aImprimir.length} seleccionados` : ` · ${aImprimir.length} registros`}
+        · Total: $${Math.round(totalImprimir).toLocaleString('es-CL')}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Trabajador</th>
+            <th>RUT</th>
+            <th>Cargo</th>
+            <th>Fecha</th>
+            <th>Monto</th>
+            <th>Estado</th>
+            <th>Tipo Pago</th>
+            <th>Fecha Pago</th>
+            <th>Observación</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${aImprimir.map(a => `
+            <tr>
+              <td><strong>${a.trabajador_nombre}</strong></td>
+              <td style="font-family:monospace">${a.trabajador_rut}</td>
+              <td>${a.trabajador_cargo || '—'}</td>
+              <td>${new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
+              <td class="neg">-$${Math.round(a.monto).toLocaleString('es-CL')}</td>
+              <td><span class="badge ${a.estado}">${a.estado.charAt(0).toUpperCase() + a.estado.slice(1)}</span></td>
+              <td>${a.tipo_pago ? TIPO_PAGO_CONFIG[a.tipo_pago]?.label : '—'}</td>
+              <td>${a.fecha_pago ? new Date(a.fecha_pago + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
+              <td>${a.observacion || '—'}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td colspan="4">TOTAL (${aImprimir.length} anticipos)</td>
+            <td class="neg">-$${Math.round(totalImprimir).toLocaleString('es-CL')}</td>
+            <td colspan="4"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="footer">
+        Generado el ${new Date().toLocaleDateString('es-CL', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+      </div>
+    </body></html>
+  `)
+  ventana.document.close()
+  ventana.print()
+}
+
   return (
     <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
 
@@ -219,6 +301,22 @@ export default function Anticipos() {
         }}>
           <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Nuevo Anticipo
         </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={imprimir} style={{
+          background: 'var(--bg-2)', color: 'var(--text-1)', border: '0.5px solid var(--border)',
+          borderRadius: '8px', padding: '9px 16px', fontSize: '13px',
+          fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+        }}>
+          🖨️ {seleccionados.size > 0 ? `Imprimir ${seleccionados.size} seleccionados` : 'Imprimir todo'}
+        </button>
+        <button onClick={abrirNuevo} style={{
+          background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
+          borderRadius: '8px', padding: '9px 18px', fontSize: '13px',
+          fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+        }}>
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Nuevo Anticipo
+        </button>
+        </div>
       </div>
 
       {/* Cards resumen */}
