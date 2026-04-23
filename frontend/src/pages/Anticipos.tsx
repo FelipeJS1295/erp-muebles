@@ -382,7 +382,12 @@ export default function Anticipos() {
               <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-3)' }}>
                 <td colSpan={4} style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)' }}>
                   Total ({filtrados.length})
-                  {seleccionados.size > 0 && <span style={{ color: '#2563eb', marginLeft: '8px' }}>· {seleccionados.size} seleccionados</span>}
+                  {seleccionados.size > 0 && (
+                    <span style={{ color: '#2563eb', marginLeft: '8px' }}>
+                      · {seleccionados.size} seleccionados — 
+                      <strong> -${Math.round(filtrados.filter(a => seleccionados.has(a.id)).reduce((s, a) => s + a.monto, 0)).toLocaleString('es-CL')}</strong>
+                    </span>
+                  )}
                 </td>
                 <td colSpan={6} style={{ padding: '12px 14px', fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
                   -${Math.round(totalMes).toLocaleString('es-CL')}
