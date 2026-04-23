@@ -12,6 +12,18 @@ const CARGO_CONFIG: Record<string, { color: string; bg: string }> = {
   oficina:      { bg: 'var(--bg-3)',       color: 'var(--text-3)' },
 }
 
+const ESTADO_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  pendiente: { label: 'Pendiente', color: '#d97706', bg: '#d9770618' },
+  pagado:    { label: 'Pagado',    color: '#059669', bg: '#05966918' },
+  rechazado: { label: 'Rechazado', color: '#dc2626', bg: '#dc262618' },
+}
+
+const TIPO_PAGO_CONFIG: Record<string, { label: string }> = {
+  efectivo:      { label: 'Efectivo' },
+  cheque:        { label: 'Cheque' },
+  transferencia: { label: 'Transferencia' },
+}
+
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 interface Anticipo {
@@ -23,6 +35,9 @@ interface Anticipo {
   fecha: string
   monto: number
   observacion: string | null
+  estado: string
+  tipo_pago: string | null
+  fecha_pago: string | null
   fecha_creacion: string
 }
 
@@ -52,8 +67,12 @@ export default function Anticipos() {
   const [anticipos, setAnticipos] = useState<Anticipo[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('')
 
-  // Modal
+  // Selección múltiple
+  const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set())
+
+  // Modal nuevo
   const [modal, setModal] = useState(false)
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([])
   const [form, setForm] = useState({
@@ -64,13 +83,24 @@ export default function Anticipos() {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Modal bulk estado
+  const [modalBulk, setModalBulk] = useState(false)
+  const [bulkEstado, setBulkEstado] = useState('pagado')
+  const [bulkTipoPago, setBulkTipoPago] = useState('efectivo')
+  const [bulkFechaPago, setBulkFechaPago] = useState(new Date().toISOString().split('T')[0])
+  const [savingBulk, setSavingBulk] = useState(false)
+
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
   const cargar = async () => {
     setLoading(true)
     try {
-      const res = await api.get(`/anticipos?mes=${mes}&anio=${anio}`)
+      const params = new URLSearchParams({ mes: String(mes), anio: String(anio) })
+      if (filtroEstado) params.append('estado', filtroEstado)
+      const res = await api.get(`/anticipos?${params}`)
       setAnticipos(res.data.anticipos ?? [])
+      setSeleccionados(new Set())
     } catch {
       setAnticipos([])
     } finally {
@@ -87,8 +117,26 @@ export default function Anticipos() {
     }
   }
 
-  useEffect(() => { cargar() }, [mes, anio])
+  useEffect(() => { cargar() }, [mes, anio, filtroEstado])
 
+  // Selección
+  const toggleSeleccion = (id: number) => {
+    setSeleccionados(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleTodos = () => {
+    if (seleccionados.size === filtrados.length) {
+      setSeleccionados(new Set())
+    } else {
+      setSeleccionados(new Set(filtrados.map(a => a.id)))
+    }
+  }
+
+  // Modal nuevo
   const abrirNuevo = async () => {
     setForm({ trabajador_id: '', fecha: new Date().toISOString().split('T')[0], monto: '', observacion: '' })
     setError('')
@@ -116,6 +164,26 @@ export default function Anticipos() {
     }
   }
 
+  // Bulk estado
+  const guardarBulk = async () => {
+    setSavingBulk(true)
+    try {
+      await api.put('/anticipos/bulk-estado', {
+        ids: Array.from(seleccionados),
+        estado: bulkEstado,
+        tipo_pago: bulkEstado === 'pagado' ? bulkTipoPago : null,
+        fecha_pago: bulkEstado === 'pagado' ? bulkFechaPago : null,
+      })
+      setModalBulk(false)
+      setSeleccionados(new Set())
+      cargar()
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Error al actualizar')
+    } finally {
+      setSavingBulk(false)
+    }
+  }
+
   const eliminar = async (id: number) => {
     try {
       await api.delete(`/anticipos/${id}`)
@@ -131,18 +199,18 @@ export default function Anticipos() {
       : true
   )
 
-  const totalMes = filtrados.reduce((s, a) => s + a.monto, 0)
+  const totalMes       = filtrados.reduce((s, a) => s + a.monto, 0)
+  const totalPagado    = filtrados.filter(a => a.estado === 'pagado').reduce((s, a) => s + a.monto, 0)
+  const totalPendiente = filtrados.filter(a => a.estado === 'pendiente').reduce((s, a) => s + a.monto, 0)
+
+  const todosSel = filtrados.length > 0 && seleccionados.size === filtrados.length
+  const algunosSel = seleccionados.size > 0 && !todosSel
 
   // Resumen por trabajador
   const porTrabajador = Object.values(
     filtrados.reduce((acc, a) => {
       if (!acc[a.trabajador_id]) {
-        acc[a.trabajador_id] = {
-          nombre: a.trabajador_nombre,
-          cargo: a.trabajador_cargo,
-          total: 0,
-          cantidad: 0,
-        }
+        acc[a.trabajador_id] = { nombre: a.trabajador_nombre, cargo: a.trabajador_cargo, total: 0, cantidad: 0 }
       }
       acc[a.trabajador_id].total += a.monto
       acc[a.trabajador_id].cantidad++
@@ -151,7 +219,7 @@ export default function Anticipos() {
   ).sort((a, b) => b.total - a.total)
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
@@ -168,58 +236,104 @@ export default function Anticipos() {
         </button>
       </div>
 
-      {/* Selector período */}
+      {/* Cards resumen */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        {[
+          { label: 'Total anticipos',  valor: `-$${Math.round(totalMes).toLocaleString('es-CL')}`,       color: '#dc2626' },
+          { label: 'Pagado',           valor: `-$${Math.round(totalPagado).toLocaleString('es-CL')}`,    color: '#059669' },
+          { label: 'Pendiente',        valor: `-$${Math.round(totalPendiente).toLocaleString('es-CL')}`, color: '#d97706' },
+        ].map(c => (
+          <div key={c.label} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{c.label}</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: c.color }}>{c.valor}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Selector período + filtros */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px',
+        display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px',
         background: 'var(--bg-2)', border: '0.5px solid var(--border)',
-        borderRadius: '10px', padding: '14px 16px',
+        borderRadius: '10px', padding: '12px 16px', flexWrap: 'wrap',
       }}>
         <div style={{ fontSize: '12px', color: 'var(--text-3)', fontWeight: 500 }}>Período:</div>
         <select value={mes} onChange={e => setMes(Number(e.target.value))}
-          style={{ padding: '7px 10px', borderRadius: '7px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', fontSize: '13px', outline: 'none' }}>
+          style={{ padding: '6px 10px', borderRadius: '7px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', fontSize: '12px', outline: 'none' }}>
           {MESES.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
         </select>
         <select value={anio} onChange={e => setAnio(Number(e.target.value))}
-          style={{ padding: '7px 10px', borderRadius: '7px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', fontSize: '13px', outline: 'none' }}>
+          style={{ padding: '6px 10px', borderRadius: '7px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', fontSize: '12px', outline: 'none' }}>
           {[2024,2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <div style={{ marginLeft: 'auto', fontSize: '14px', fontWeight: 700, color: '#dc2626' }}>
-          Total anticipos: -${Math.round(totalMes).toLocaleString('es-CL')}
+
+        <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
+
+        {/* Filtro estado */}
+        {['', 'pendiente', 'pagado', 'rechazado'].map(e => (
+          <button key={e} onClick={() => setFiltroEstado(e)} style={{
+            padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
+            border: '0.5px solid var(--border)', cursor: 'pointer',
+            background: filtroEstado === e ? 'var(--accent)' : 'var(--bg)',
+            color: filtroEstado === e ? 'var(--accent-fg)' : (ESTADO_CONFIG[e]?.color || 'var(--text-3)'),
+          }}>{e === '' ? 'Todos' : ESTADO_CONFIG[e]?.label}</button>
+        ))}
+
+        <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
+
+        {/* Búsqueda */}
+        <div style={{ position: 'relative' }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-3)" strokeWidth="1.3"
+            style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)' }}>
+            <circle cx="5" cy="5" r="4"/><path d="M9 9l2 2"/>
+          </svg>
+          <input placeholder="Buscar trabajador..." value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            style={{ padding: '6px 10px 6px 26px', borderRadius: '7px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', fontSize: '12px', outline: 'none', width: '200px' }} />
+        </div>
+
+        {/* Acción bulk */}
+        {seleccionados.size > 0 && (
+          <>
+            <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
+            <button onClick={() => setModalBulk(true)} style={{
+              padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+              border: '0.5px solid #2563eb44', background: '#2563eb11',
+              color: '#2563eb', cursor: 'pointer',
+            }}>
+              Actualizar {seleccionados.size} seleccionado{seleccionados.size !== 1 ? 's' : ''}
+            </button>
+          </>
+        )}
+
+        <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-3)' }}>
+          {filtrados.length} registros
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', alignItems: 'start' }}>
 
-        {/* Tabla principal */}
+        {/* Tabla */}
         <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-
-          {/* Búsqueda */}
-          <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ position: 'relative', flex: 1, maxWidth: '280px' }}>
-              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="var(--text-3)" strokeWidth="1.3"
-                style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)' }}>
-                <circle cx="5" cy="5" r="4"/><path d="M9 9l2 2"/>
-              </svg>
-              <input placeholder="Buscar trabajador..." value={busqueda}
-                onChange={e => setBusqueda(e.target.value)}
-                style={{ ...IS, paddingLeft: '28px' }} />
-            </div>
-            <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-3)' }}>
-              {filtrados.length} registros
-            </div>
-          </div>
-
           {loading ? (
             <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>Cargando...</div>
           ) : filtrados.length === 0 ? (
             <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
-              No hay anticipos registrados para este período
+              No hay anticipos para este período
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                  {['Trabajador', 'Cargo', 'Fecha', 'Monto', 'Observación', ''].map(h => (
+                  {/* Check todos */}
+                  <th style={{ padding: '10px 14px', background: 'var(--bg-3)', width: '40px' }}>
+                    <input type="checkbox"
+                      checked={todosSel}
+                      ref={el => { if (el) el.indeterminate = algunosSel }}
+                      onChange={toggleTodos}
+                      style={{ cursor: 'pointer', width: '14px', height: '14px' }}
+                    />
+                  </th>
+                  {['Trabajador', 'Cargo', 'Fecha', 'Monto', 'Estado', 'Tipo Pago', 'Observación', ''].map(h => (
                     <th key={h} style={{
                       padding: '10px 14px', textAlign: 'left', fontSize: '11px',
                       fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase',
@@ -231,12 +345,22 @@ export default function Anticipos() {
               <tbody>
                 {filtrados.map((a, i) => {
                   const cargoCfg = CARGO_CONFIG[a.trabajador_cargo] ?? { bg: 'var(--bg-3)', color: 'var(--text-3)' }
+                  const estCfg  = ESTADO_CONFIG[a.estado] ?? ESTADO_CONFIG.pendiente
+                  const isSel   = seleccionados.has(a.id)
                   return (
                     <tr key={a.id}
-                      style={{ borderBottom: i < filtrados.length - 1 ? '0.5px solid var(--border)' : 'none' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-3)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                      style={{
+                        borderBottom: i < filtrados.length - 1 ? '0.5px solid var(--border)' : 'none',
+                        background: isSel ? 'var(--accent)08' : 'transparent',
+                      }}
+                      onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-3)' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isSel ? 'var(--accent)08' : 'transparent' }}
                     >
+                      {/* Checkbox */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <input type="checkbox" checked={isSel} onChange={() => toggleSeleccion(a.id)}
+                          style={{ cursor: 'pointer', width: '14px', height: '14px' }} />
+                      </td>
                       <td style={{ padding: '12px 14px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-1)' }}>{a.trabajador_nombre}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'monospace' }}>{a.trabajador_rut}</div>
@@ -250,15 +374,24 @@ export default function Anticipos() {
                         {new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-CL')}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
-                        <span style={{
-                          fontSize: '14px', fontWeight: 700, color: '#dc2626',
-                          background: '#dc262618', padding: '3px 10px',
-                          borderRadius: '8px', whiteSpace: 'nowrap',
-                        }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#dc2626', background: '#dc262618', padding: '3px 10px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
                           -${Math.round(a.monto).toLocaleString('es-CL')}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-2)', maxWidth: '200px' }}>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, background: estCfg.bg, color: estCfg.color }}>
+                          {estCfg.label}
+                        </span>
+                        {a.fecha_pago && (
+                          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>
+                            {new Date(a.fecha_pago + 'T00:00:00').toLocaleDateString('es-CL')}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)' }}>
+                        {a.tipo_pago ? TIPO_PAGO_CONFIG[a.tipo_pago]?.label : <span style={{ color: 'var(--text-3)' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--text-2)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.observacion || <span style={{ color: 'var(--text-3)' }}>—</span>}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
@@ -274,10 +407,11 @@ export default function Anticipos() {
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-3)' }}>
-                  <td colSpan={3} style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)' }}>
-                    Total ({filtrados.length} anticipos)
+                  <td colSpan={4} style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text-2)' }}>
+                    Total ({filtrados.length})
+                    {seleccionados.size > 0 && <span style={{ color: '#2563eb', marginLeft: '8px' }}>· {seleccionados.size} seleccionados</span>}
                   </td>
-                  <td colSpan={3} style={{ padding: '12px 14px', fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
+                  <td colSpan={5} style={{ padding: '12px 14px', fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
                     -${Math.round(totalMes).toLocaleString('es-CL')}
                   </td>
                 </tr>
@@ -319,36 +453,29 @@ export default function Anticipos() {
         </div>
       </div>
 
-      {/* Modal nuevo */}
+      {/* ── Modal nuevo ──────────────────────────────────────────────────────── */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
           onClick={e => { if (e.target === e.currentTarget) setModal(false) }}>
           <div style={{ background: 'var(--bg-2)', borderRadius: '14px', padding: '28px', width: '460px', border: '0.5px solid var(--border)' }}>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '20px' }}>
-              Nuevo Anticipo
-            </div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '20px' }}>Nuevo Anticipo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 {lbl('Trabajador')}
                 <select value={form.trabajador_id} onChange={e => setForm(f => ({ ...f, trabajador_id: e.target.value }))} style={IS}>
                   <option value="">Seleccionar trabajador...</option>
                   {trabajadores.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.nombre_completo} · {t.rut} {t.cargo ? `· ${t.cargo}` : ''}
-                    </option>
+                    <option key={t.id} value={t.id}>{t.nombre_completo} · {t.rut} {t.cargo ? `· ${t.cargo}` : ''}</option>
                   ))}
                 </select>
               </div>
               <div>
                 {lbl('Fecha')}
-                <input type="date" value={form.fecha}
-                  onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} style={IS} />
+                <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} style={IS} />
               </div>
               <div>
                 {lbl('Monto ($)')}
-                <input type="number" value={form.monto}
-                  onChange={e => setForm(f => ({ ...f, monto: e.target.value }))}
-                  placeholder="0" style={IS} />
+                <input type="number" value={form.monto} onChange={e => setForm(f => ({ ...f, monto: e.target.value }))} placeholder="0" style={IS} />
                 {form.monto && !isNaN(Number(form.monto)) && Number(form.monto) > 0 && (
                   <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', fontWeight: 600 }}>
                     -${Number(form.monto).toLocaleString('es-CL')}
@@ -357,34 +484,87 @@ export default function Anticipos() {
               </div>
               <div>
                 {lbl('Observación (opcional)')}
-                <input value={form.observacion}
-                  onChange={e => setForm(f => ({ ...f, observacion: e.target.value }))}
-                  placeholder="Motivo del anticipo..." style={IS} />
+                <input value={form.observacion} onChange={e => setForm(f => ({ ...f, observacion: e.target.value }))} placeholder="Motivo del anticipo..." style={IS} />
               </div>
             </div>
-
             {error && (
-              <div style={{ marginTop: '12px', padding: '10px', background: 'var(--danger-bg)', borderRadius: '7px', color: 'var(--danger)', fontSize: '13px' }}>
-                {error}
-              </div>
+              <div style={{ marginTop: '12px', padding: '10px', background: 'var(--danger-bg)', borderRadius: '7px', color: 'var(--danger)', fontSize: '13px' }}>{error}</div>
             )}
-
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={() => setModal(false)} style={{
-                padding: '9px 16px', borderRadius: '8px', border: '0.5px solid var(--border)',
-                background: 'var(--bg)', color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer',
-              }}>Cancelar</button>
-              <button onClick={guardar} disabled={saving} style={{
-                padding: '9px 20px', borderRadius: '8px', border: 'none',
-                background: 'var(--accent)', color: 'var(--accent-fg)',
-                fontSize: '13px', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1,
-              }}>{saving ? 'Guardando...' : 'Registrar'}</button>
+              <button onClick={() => setModal(false)} style={{ padding: '9px 16px', borderRadius: '8px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={guardar} disabled={saving} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Guardando...' : 'Registrar'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirm eliminar */}
+      {/* ── Modal bulk estado ────────────────────────────────────────────────── */}
+      {modalBulk && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) setModalBulk(false) }}>
+          <div style={{ background: 'var(--bg-2)', borderRadius: '14px', padding: '28px', width: '440px', border: '0.5px solid var(--border)' }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '6px' }}>
+              Actualizar {seleccionados.size} anticipo{seleccionados.size !== 1 ? 's' : ''}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '20px' }}>
+              Cambia el estado y forma de pago de los anticipos seleccionados
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                {lbl('Nuevo estado')}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {['pendiente', 'pagado', 'rechazado'].map(e => {
+                    const cfg = ESTADO_CONFIG[e]
+                    return (
+                      <button key={e} onClick={() => setBulkEstado(e)} style={{
+                        flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+                        border: `0.5px solid ${bulkEstado === e ? cfg.color : 'var(--border)'}`,
+                        background: bulkEstado === e ? cfg.bg : 'var(--bg)',
+                        color: bulkEstado === e ? cfg.color : 'var(--text-3)',
+                        cursor: 'pointer',
+                      }}>{cfg.label}</button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {bulkEstado === 'pagado' && <>
+                <div>
+                  {lbl('Tipo de pago')}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {['efectivo', 'cheque', 'transferencia'].map(t => (
+                      <button key={t} onClick={() => setBulkTipoPago(t)} style={{
+                        flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+                        border: `0.5px solid ${bulkTipoPago === t ? '#2563eb' : 'var(--border)'}`,
+                        background: bulkTipoPago === t ? '#2563eb18' : 'var(--bg)',
+                        color: bulkTipoPago === t ? '#2563eb' : 'var(--text-3)',
+                        cursor: 'pointer',
+                      }}>{TIPO_PAGO_CONFIG[t].label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  {lbl('Fecha de pago')}
+                  <input type="date" value={bulkFechaPago} onChange={e => setBulkFechaPago(e.target.value)}
+                    style={IS} />
+                </div>
+              </>}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button onClick={() => setModalBulk(false)} style={{ padding: '9px 16px', borderRadius: '8px', border: '0.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={guardarBulk} disabled={savingBulk} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', opacity: savingBulk ? 0.6 : 1 }}>
+                {savingBulk ? 'Guardando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm eliminar ─────────────────────────────────────────────────── */}
       {confirmDelete !== null && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
           <div style={{ background: 'var(--bg-2)', borderRadius: '14px', padding: '28px', width: '360px', border: '0.5px solid var(--border)', textAlign: 'center' }}>
