@@ -70,6 +70,7 @@ class Orden(Base):
     # Raw data por si necesitamos algo extra
     raw: Mapped[dict] = mapped_column(JSON, nullable=True)
     notas: Mapped[str] = mapped_column(String(500), nullable=True)
+    eliminada = Column(Integer, default=0, nullable=False)
 
     def __repr__(self):
         return f"<Orden {self.marketplace} {self.orden_id_marketplace}>"

@@ -333,6 +333,8 @@ async def sincronizar_ordenes_walmart(
                 existente = result.scalar_one_or_none()
 
                 if existente:
+                    if existente.eliminada == 1:
+                        continue
                     existente.orden_id_marketplace = o.get("orden_id")
                     existente.estado_marketplace = o.get("estado")
                     existente.fecha_despacho = o.get("fecha_despacho")
@@ -388,7 +390,7 @@ async def listar_ordenes(
     try:
         from app.models.boleta import Boleta
 
-        query = select(Orden).order_by(Orden.fecha_creacion.desc())
+        query = select(Orden).where(Orden.eliminada == 0).order_by(Orden.fecha_creacion.desc())
         if marketplace:
             query = query.where(Orden.marketplace == marketplace)
         if estado:
@@ -438,6 +440,22 @@ async def listar_ordenes(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error BD: {str(e)}")
+
+@app.delete("/api/v1/ordenes/{orden_id}", tags=["Base de Datos"])
+async def eliminar_orden(orden_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(Orden).where(Orden.id == orden_id))
+        orden = result.scalar_one_or_none()
+        if not orden:
+            raise HTTPException(status_code=404, detail="Orden no encontrada")
+        orden.eliminada = 1
+        await db.commit()
+        return {"mensaje": "Orden eliminada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/api/v1/marketplaces/paris/etiqueta/{label_id}", tags=["Paris Chile"])
 async def imprimir_etiqueta_paris(label_id: str):
@@ -644,6 +662,8 @@ async def sincronizar_ordenes_falabella(db: AsyncSession = Depends(get_db)):
                         fecha_despacho = promised[:10]
 
                     if existente:
+                        if existente.eliminada == 1:
+                            continue
                         existente.estado_marketplace = estado
                         existente.items = items
                         existente.fecha_actualizacion = datetime.utcnow()
@@ -705,6 +725,8 @@ async def sync_ripley(db: AsyncSession = Depends(get_db)):
             existing = result.scalar_one_or_none()
 
             if existing:
+                if existing.eliminada == 1:
+                    continue
                 existing.estado_marketplace = estado
                 existing.fecha_despacho = orden["fecha_despacho"]
                 existing.fecha_llegada = orden.get("fecha_llegada")
@@ -776,6 +798,8 @@ async def sincronizar_ordenes_paris(
             tipo_doc = o.get("tipo_documento", "boleta")
 
             if existente:
+                if existente.eliminada == 1:
+                    continue
                 existente.estado_marketplace = estado_nombre
                 existente.fecha_actualizacion = datetime.utcnow()
                 orden_obj = existente

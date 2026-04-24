@@ -220,6 +220,8 @@ async def sync_api_cliente(id: int, db: AsyncSession = Depends(get_db)):
                 estado_nombre = estado.get("name") if isinstance(estado, dict) else estado
 
                 if existente:
+                    if existente.eliminada == 1:
+                        continue
                     existente.estado_marketplace = estado_nombre
                     existente.fecha_actualizacion = datetime.utcnow()
                     actualizadas += 1
@@ -269,6 +271,8 @@ async def sync_api_cliente(id: int, db: AsyncSession = Depends(get_db)):
                 )
                 existente = res.scalar_one_or_none()
                 if existente:
+                    if existente.eliminada == 1:
+                        continue
                     existente.estado_marketplace = estado
                     existente.fecha_actualizacion = datetime.utcnow()
                     actualizadas += 1
