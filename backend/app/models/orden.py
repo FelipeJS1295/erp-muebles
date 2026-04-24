@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Float, Integer, DateTime, JSON, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Float, DateTime, Date, JSON, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 import enum
@@ -70,7 +70,7 @@ class Orden(Base):
     # Raw data por si necesitamos algo extra
     raw: Mapped[dict] = mapped_column(JSON, nullable=True)
     notas: Mapped[str] = mapped_column(String(500), nullable=True)
-    eliminada = Column(Integer, default=0, nullable=False)
+    eliminada = Column(Integer, default=0, nullable=False, server_default='0')
 
     def __repr__(self):
         return f"<Orden {self.marketplace} {self.orden_id_marketplace}>"
