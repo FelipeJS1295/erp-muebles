@@ -213,6 +213,7 @@ export default function Ordenes() {
   const usuarioGuardado = localStorage.getItem('usuario')
   const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
   const soloLectura = usuario?.rol === 'view'
+  const esAdminMaster = usuario?.rol === 'admin_master'
 
   const filtradas = useMemo(() => {
     let result = [...ordenes]
@@ -263,6 +264,17 @@ export default function Ordenes() {
 
   const allSelected = filtradas.length > 0 && selected.size === filtradas.length
   const someSelected = selected.size > 0 && selected.size < filtradas.length
+
+  const eliminar = async (id: number) => {
+  if (!confirm('¿Eliminar esta orden? Esta acción no se puede deshacer.')) return
+  try {
+    await api.delete(`/ordenes/${id}`)
+    setOrdenes(prev => prev.filter(o => o.id !== id))
+  } catch (e) {
+    console.error(e)
+    alert('Error al eliminar la orden')
+  }
+}
 
   return (
   <div style={{ animation: 'fadeIn 0.2s ease' }}>
@@ -533,6 +545,13 @@ export default function Ordenes() {
                               border: '0.5px solid var(--border)', background: 'var(--bg)',
                               color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
                             }}>Etiqueta</button>
+                          )}
+                          {esAdminMaster && (
+                            <button onClick={() => eliminar(o.id)} style={{
+                              fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
+                              border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
+                              color: 'var(--danger)', cursor: 'pointer', whiteSpace: 'nowrap',
+                            }}>Eliminar</button>
                           )}
                         </div>
                       </td>
