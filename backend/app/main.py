@@ -333,35 +333,16 @@ async def sincronizar_ordenes_walmart(
                 existente = result.scalar_one_or_none()
 
                 if existente:
+                    if existente.eliminada == 1:
+                        continue
+                    existente.orden_id_marketplace = o.get("orden_id")
                     existente.estado_marketplace = o.get("estado")
                     existente.fecha_despacho = o.get("fecha_despacho")
                     existente.fecha_llegada = o.get("fecha_entrega_cliente")
                     existente.total = o.get("total")
-                    existente.raw = o
+                    existente.items = o.get("productos", [])
                     existente.fecha_actualizacion = datetime.utcnow()
                     actualizadas += 1
-                else:
-                    # Buscar también por customerOrderId
-                    res2 = await db.execute(
-                        sel(Orden).where(
-                            Orden.marketplace == MarketplaceEnum.walmart,
-                            Orden.orden_id_marketplace == o.get("orden_id"),
-                            Orden.cliente_id == cliente.id,
-                        )
-                    )
-                    existente2 = res2.scalar_one_or_none()
-                if existente2:
-                            if existente2.eliminada == 1:
-                                continue
-                            existente2.sub_orden_id = o.get("purchase_order_id")
-                            existente2.estado_marketplace = o.get("estado")
-                            existente2.fecha_despacho = o.get("fecha_despacho")
-                            existente2.fecha_llegada = o.get("fecha_entrega_cliente")
-                            existente2.total = o.get("total")
-                            existente2.raw = o
-                            existente2.fecha_actualizacion = datetime.utcnow()
-                            actualizadas += 1
-                            continue
                 else:
                     nueva = Orden(
                         marketplace=MarketplaceEnum.walmart,

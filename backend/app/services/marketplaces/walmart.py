@@ -84,17 +84,9 @@ class WalmartChileService:
         tz_chile = timezone(timedelta(hours=-4))
         ordenes = []
 
+        # Si se especifica un estado, traer solo ese
+        # Si no, traer todos los estados
         estados = [estado] if estado else ["Created", "Acknowledged", "Shipped", "Cancelled"]
-
-        def _extraer_estado(lineas):
-            if not lineas:
-                return "N/A"
-            statuses_raw = lineas[0].get("orderLineStatuses", {}).get("orderLineStatus", {})
-            if isinstance(statuses_raw, list):
-                return statuses_raw[0].get("status", "N/A") if statuses_raw else "N/A"
-            elif isinstance(statuses_raw, dict):
-                return statuses_raw.get("status", "N/A")
-            return "N/A"
 
         async with httpx.AsyncClient() as client:
             for est in estados:
@@ -148,7 +140,9 @@ class WalmartChileService:
                                 o.get("orderDate", 0) / 1000
                             ).strftime('%d/%m/%Y %H:%M'),
                             "cliente": shipping.get("postalAddress", {}).get("name", "N/A"),
-                            "estado": _extraer_estado(lineas),
+                            "estado": lineas[0].get("orderLineStatuses", {})
+                                               .get("orderLineStatus", [{}])[0]
+                                               .get("status", "N/A") if lineas else "N/A",
                             "total_items": len(lineas),
                             "fecha_despacho": estimated_ship_date,
                             "fecha_entrega_cliente": estimated_delivery_date,
@@ -328,6 +322,7 @@ class WalmartChileService:
         """
         headers = await self._headers()
 
+        # 1. Obtener el shipmentNo desde la orden
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{self.base_url}/orders/{purchase_order_id}",
@@ -356,6 +351,7 @@ class WalmartChileService:
         if not shipment_no:
             raise Exception("Esta orden aún no tiene número de seguimiento asignado")
 
+        # 2. Obtener la etiqueta PDF usando el shipmentNo
         async with httpx.AsyncClient() as client:
             label_response = await client.get(
                 f"{self.base_url}/orders/label/{shipment_no}",
@@ -364,6 +360,7 @@ class WalmartChileService:
             )
             label_response.raise_for_status()
 
+            # Walmart devuelve base64 o URL
             label_data = label_response.json()
             print(f"🏷️ Label response: {str(label_data)[:200]}")
 
