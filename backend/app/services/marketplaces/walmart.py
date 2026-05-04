@@ -80,88 +80,101 @@ class WalmartChileService:
     ) -> dict:
         headers = await self._headers()
         desde = "2026-01-01T00:00:00Z"
-
         tz_chile = timezone(timedelta(hours=-4))
         ordenes = []
-
-        # Si se especifica un estado, traer solo ese
-        # Si no, traer todos los estados
         estados = [estado] if estado else ["Created", "Acknowledged", "Shipped", "Cancelled"]
 
         async with httpx.AsyncClient() as client:
             for est in estados:
                 try:
-                    response = await client.get(
-                        f"{self.base_url}/orders",
-                        headers=await self._headers(),
-                        params={
+                    next_cursor = None
+                    pagina = 0
+                    while True:
+                        pagina += 1
+                        params = {
                             "status": est,
                             "limit": 200,
                             "createdStartDate": desde,
-                        },
-                        timeout=30,
-                    )
-                    response.raise_for_status()
-                    data = response.json()
+                        }
+                        if next_cursor:
+                            params["nextCursor"] = next_cursor
 
-                    ordenes_raw = (
-                        data.get("list", {})
-                            .get("elements", {})
-                            .get("order", [])
-                    )
-                    if isinstance(ordenes_raw, dict):
-                        ordenes_raw = [ordenes_raw]
+                        response = await client.get(
+                            f"{self.base_url}/orders",
+                            headers=await self._headers(),
+                            params=params,
+                            timeout=30,
+                        )
+                        response.raise_for_status()
+                        data = response.json()
 
-                    for o in ordenes_raw:
-                        lineas = o.get("orderLines", {}).get("orderLine", [])
-                        if isinstance(lineas, dict):
-                            lineas = [lineas]
+                        meta = data.get("list", {}).get("meta", {})
+                        next_cursor = meta.get("nextCursor")
+                        total_count = meta.get("totalCount", 0)
+                        print(f"📦 Walmart {est} página {pagina}: totalCount={total_count} nextCursor={bool(next_cursor)}")
 
-                        shipping = o.get("shippingInfo", {})
+                        ordenes_raw = (
+                            data.get("list", {})
+                                .get("elements", {})
+                                .get("order", [])
+                        )
+                        if isinstance(ordenes_raw, dict):
+                            ordenes_raw = [ordenes_raw]
 
-                        estimated_ship_ts = shipping.get("estimatedShipDate")
-                        estimated_ship_date = None
-                        if estimated_ship_ts:
-                            estimated_ship_date = datetime.fromtimestamp(
-                                estimated_ship_ts / 1000, tz=tz_chile
-                            ).strftime('%Y-%m-%d')
+                        for o in ordenes_raw:
+                            lineas = o.get("orderLines", {}).get("orderLine", [])
+                            if isinstance(lineas, dict):
+                                lineas = [lineas]
 
-                        estimated_delivery_ts = shipping.get("estimatedDeliveryDate")
-                        estimated_delivery_date = None
-                        if estimated_delivery_ts:
-                            estimated_delivery_date = datetime.fromtimestamp(
-                                estimated_delivery_ts / 1000, tz=tz_chile
-                            ).strftime('%Y-%m-%d')
+                            shipping = o.get("shippingInfo", {})
 
-                        ordenes.append({
-                            "orden_id": o.get("customerOrderId"),
-                            "purchase_order_id": o.get("purchaseOrderId"),
-                            "fecha": datetime.fromtimestamp(
-                                o.get("orderDate", 0) / 1000
-                            ).strftime('%d/%m/%Y %H:%M'),
-                            "cliente": shipping.get("postalAddress", {}).get("name", "N/A"),
-                            "estado": lineas[0].get("orderLineStatuses", {})
-                                               .get("orderLineStatus", [{}])[0]
-                                               .get("status", "N/A") if lineas else "N/A",
-                            "total_items": len(lineas),
-                            "fecha_despacho": estimated_ship_date,
-                            "fecha_entrega_cliente": estimated_delivery_date,
-                            "ciudad": shipping.get("postalAddress", {}).get("city"),
-                            "region": shipping.get("postalAddress", {}).get("state"),
-                            "total": o.get("orderSummary", {}).get("totalAmount", {}).get("amount"),
-                            "productos": [
-                                {
-                                    "sku": l.get("item", {}).get("sku"),
-                                    "nombre": l.get("item", {}).get("productName"),
-                                    "cantidad": l.get("orderLineQuantity", {}).get("amount"),
-                                    "precio": l.get("charges", {})
-                                               .get("charge", [{}])[0]
-                                               .get("chargeAmount", {})
-                                               .get("amount") if l.get("charges", {}).get("charge") else None,
-                                }
-                                for l in lineas
-                            ],
-                        })
+                            estimated_ship_ts = shipping.get("estimatedShipDate")
+                            estimated_ship_date = None
+                            if estimated_ship_ts:
+                                estimated_ship_date = datetime.fromtimestamp(
+                                    estimated_ship_ts / 1000, tz=tz_chile
+                                ).strftime('%Y-%m-%d')
+
+                            estimated_delivery_ts = shipping.get("estimatedDeliveryDate")
+                            estimated_delivery_date = None
+                            if estimated_delivery_ts:
+                                estimated_delivery_date = datetime.fromtimestamp(
+                                    estimated_delivery_ts / 1000, tz=tz_chile
+                                ).strftime('%Y-%m-%d')
+
+                            ordenes.append({
+                                "orden_id": o.get("customerOrderId"),
+                                "purchase_order_id": o.get("purchaseOrderId"),
+                                "fecha": datetime.fromtimestamp(
+                                    o.get("orderDate", 0) / 1000
+                                ).strftime('%d/%m/%Y %H:%M'),
+                                "cliente": shipping.get("postalAddress", {}).get("name", "N/A"),
+                                "estado": lineas[0].get("orderLineStatuses", {})
+                                                .get("orderLineStatus", [{}])[0]
+                                                .get("status", "N/A") if lineas else "N/A",
+                                "total_items": len(lineas),
+                                "fecha_despacho": estimated_ship_date,
+                                "fecha_entrega_cliente": estimated_delivery_date,
+                                "ciudad": shipping.get("postalAddress", {}).get("city"),
+                                "region": shipping.get("postalAddress", {}).get("state"),
+                                "total": o.get("orderSummary", {}).get("totalAmount", {}).get("amount"),
+                                "productos": [
+                                    {
+                                        "sku": l.get("item", {}).get("sku"),
+                                        "nombre": l.get("item", {}).get("productName"),
+                                        "cantidad": l.get("orderLineQuantity", {}).get("amount"),
+                                        "precio": l.get("charges", {})
+                                                .get("charge", [{}])[0]
+                                                .get("chargeAmount", {})
+                                                .get("amount") if l.get("charges", {}).get("charge") else None,
+                                    }
+                                    for l in lineas
+                                ],
+                            })
+
+                        if not next_cursor:
+                            break
+
                 except Exception as e:
                     print(f"⚠️ Error trayendo estado {est}: {str(e)}")
                     continue
