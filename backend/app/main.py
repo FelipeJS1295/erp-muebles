@@ -309,7 +309,7 @@ async def actualizar_stock_paris(sku: str, cantidad: int):
 
 @app.post("/api/v1/ordenes/sync/walmart", tags=["Base de Datos"])
 async def sincronizar_ordenes_walmart(
-    dias: int = 30,
+    dias: int = 90,
     db: AsyncSession = Depends(get_db)
 ):
     try:

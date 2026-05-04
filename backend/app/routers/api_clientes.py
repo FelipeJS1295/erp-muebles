@@ -153,7 +153,7 @@ async def sync_api_cliente(id: int, db: AsyncSession = Depends(get_db)):
             )
             estados = ["Created", "Acknowledged", "Shipped", "Cancelled"]
             for estado in estados:
-                data = await svc.obtener_ordenes(estado=estado, dias=30)
+                data = await svc.obtener_ordenes(estado=estado, dias=90)
                 for o in data.get("ordenes", []):
                     res = await db.execute(
                         sel(Orden).where(
