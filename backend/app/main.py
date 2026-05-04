@@ -322,6 +322,8 @@ async def sincronizar_ordenes_walmart(
         for estado in estados:
             data = await walmart_service.obtener_ordenes(estado=estado, dias=dias)
             ordenes = data.get("ordenes", [])
+            ordenes = data.get("ordenes", [])
+            print(f"📦 Walmart {estado}: {len(ordenes)} órdenes")
 
             for o in ordenes:
                 result = await db.execute(
