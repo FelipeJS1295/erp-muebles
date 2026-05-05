@@ -149,8 +149,6 @@ async def eliminar_hora_extra(he_id: int, db: AsyncSession = Depends(get_db)):
         he = result.scalar_one_or_none()
         if not he:
             raise HTTPException(status_code=404, detail="Registro no encontrado")
-        if he.estado == "aprobada":
-            raise HTTPException(status_code=400, detail="No se puede eliminar una hora extra aprobada")
         await db.delete(he)
         await db.commit()
         return {"mensaje": "Registro eliminado correctamente"}
