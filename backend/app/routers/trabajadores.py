@@ -114,7 +114,7 @@ async def login_trabajador(data: dict, db: AsyncSession = Depends(get_db)):
             raise HTTPException(status_code=401, detail="RUT o contraseña incorrectos")
 
         # Generar token simple (mismo sistema que usuarios)
-        import jwt
+        from jose import jwt
         from datetime import datetime, timedelta
         import os
 
