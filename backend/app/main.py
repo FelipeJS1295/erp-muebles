@@ -436,6 +436,7 @@ async def listar_ordenes(
                         (o.raw or {}).get("order", {}).get("originInvoiceType") or
                         "boleta"
                     ),
+                    "fulfillment": (o.raw or {}).get("fulfillment") or (o.raw or {}).get("raw", {}).get("fulfillment"),
                 }
                 for o in ordenes
             ],
@@ -821,7 +822,7 @@ async def sincronizar_ordenes_paris(
                     fecha_llegada=o.get("fecha_llegada"),
                     items=items_data,
                     fecha_marketplace=datetime.utcnow(),
-                    raw=o,
+                    raw={**o, "fulfillment": o.get("raw", {}).get("fulfillment")},
                 )
                 db.add(nueva)
                 await db.flush()

@@ -23,6 +23,7 @@ interface Orden {
   fecha_despacho: string | null
   fecha_llegada: string | null
   label_url: string | null
+  fulfillment?: string
   total: number | null
   items: any[]
   raw: any
