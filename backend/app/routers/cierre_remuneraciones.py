@@ -37,7 +37,8 @@ async def cierre_remuneraciones(
         elif mes and anio:
             fd = date(anio, mes, 1)
             fh_exclusiva = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
-            fh = date(fh_exclusiva.year, fh_exclusiva.month, fh_exclusiva.day - 1) if mes != 12 else date(anio, 12, 31)
+            from datetime import timedelta
+            fh = fh_exclusiva - timedelta(days=1)
         else:
             raise HTTPException(status_code=400, detail="Debes indicar mes+anio o fecha_desde+fecha_hasta")
 
