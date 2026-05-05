@@ -83,6 +83,20 @@ async def cierre_remuneraciones(
                 )
                 ots_reparacion = result_reps.scalars().all()
 
+                    # DEBUG TEMPORAL ↓
+                print(f"\n[DEBUG] {t.nombre_completo} (id={t.id}) cargo={t.cargo}")
+                print(f"  Período: {fd} → {fh_exclusiva}")
+                print(f"  OTs producción: {len(ots_produccion)}")
+                print(f"  OTs reparación: {len(ots_reparacion)}")
+                for o in ots_reparacion:
+                    print(f"    rep id={o.id} trabajador_id={o.trabajador_id} fecha={o.fecha} estado={o.estado} precio={o.precio_aplicado}")
+                # DEBUG TEMPORAL ↑
+
+                sueldo_efectivo = (
+                    sum(o.precio_aplicado or 0 for o in ots_produccion) +
+                    sum(o.precio_aplicado or 0 for o in ots_reparacion)
+                )
+
                 sueldo_efectivo = (
                     sum(o.precio_aplicado or 0 for o in ots_produccion) +
                     sum(o.precio_aplicado or 0 for o in ots_reparacion)
