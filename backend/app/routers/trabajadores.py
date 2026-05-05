@@ -86,3 +86,58 @@ async def eliminar_trabajador(id: int, db: AsyncSession = Depends(get_db)):
         return {"mensaje": "Trabajador desactivado", "id": id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@router.post("/login")
+async def login_trabajador(data: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        rut = data.get("rut", "").strip()
+        password = data.get("password", "")
+
+        if not rut or not password:
+            raise HTTPException(status_code=400, detail="RUT y contraseña requeridos")
+
+        result = await db.execute(
+            select(Trabajador).where(
+                Trabajador.rut == rut,
+                Trabajador.activo == 1,
+            )
+        )
+        trabajador = result.scalar_one_or_none()
+
+        if not trabajador:
+            raise HTTPException(status_code=401, detail="RUT o contraseña incorrectos")
+
+        if not trabajador.password_hash:
+            raise HTTPException(status_code=401, detail="Este trabajador no tiene contraseña configurada")
+
+        if trabajador.password_hash != hash_password(password):
+            raise HTTPException(status_code=401, detail="RUT o contraseña incorrectos")
+
+        # Generar token simple (mismo sistema que usuarios)
+        import jwt
+        from datetime import datetime, timedelta
+        import os
+
+        secret = os.getenv("SECRET_KEY", "changeme")
+        payload = {
+            "sub": str(trabajador.id),
+            "tipo": "trabajador",
+            "exp": datetime.utcnow() + timedelta(days=30),
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "trabajador": {
+                "id": trabajador.id,
+                "nombre_completo": trabajador.nombre_completo,
+                "rut": trabajador.rut,
+                "cargo": trabajador.cargo or "otro",
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
