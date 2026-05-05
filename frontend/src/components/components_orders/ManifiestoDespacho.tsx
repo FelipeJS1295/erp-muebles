@@ -65,7 +65,7 @@ function getEstadoUnificado(orden: any): string {
     'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
     'SHIPPING': 'Nueva', 'TO_COLLECT': 'Nueva',
     'RECEIVED': 'Despachada', 'CLOSED': 'Despachada',
-    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada','printed_label': 'Nueva',
+    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada','printed_label': 'Nueva','Delivered': 'Despachada',
   }
   return mapa[orden.estado] || orden.estado
 }

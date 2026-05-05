@@ -315,7 +315,7 @@ async def sincronizar_ordenes_walmart(
     try:
         guardadas = 0
         actualizadas = 0
-        estados = ["Created", "Acknowledged", "Shipped", "Cancelled"]
+        estados = ["Created", "Acknowledged", "Shipped", "Delivered", "Cancelled"]
 
         for estado in estados:
             data = await walmart_service.obtener_ordenes(estado=estado, dias=dias)
