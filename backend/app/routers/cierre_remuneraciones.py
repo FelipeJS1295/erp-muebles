@@ -68,7 +68,6 @@ async def cierre_remuneraciones(
                         OrdenTrabajo.fecha >= fd,
                         OrdenTrabajo.fecha < fh_exclusiva,
                         OrdenTrabajo.estado.in_(['completada', 'pendiente']),
-                        OrdenTrabajo.tipo != 'reparacion',
                     )
                 )
                 ots = result_ots.scalars().all()
