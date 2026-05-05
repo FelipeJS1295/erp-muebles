@@ -94,28 +94,33 @@ export default function CierreRemuneraciones() {
   const [busqueda, setBusqueda] = useState('')
   const [expandido, setExpandido] = useState<number | null>(null)
 
-  const cargar = async () => {
+    const cargar = async () => {
     setLoading(true)
     try {
-      let url = ''
-      if (modo === 'mes') {
+        let url = ''
+        if (modo === 'mes') {
         url = `/cierre-remuneraciones?mes=${mes}&anio=${anio}`
-      } else {
+        } else {
+        if (!desde || !hasta) return
         url = `/cierre-remuneraciones?fecha_desde=${desde}&fecha_hasta=${hasta}`
-      }
-      const res = await api.get(url)
-      setResumen(res.data.resumen ?? [])
-      setTotalPlanilla(res.data.total_planilla ?? 0)
-      setTotalProduccion(res.data.total_produccion ?? 0)
-      setTotalResto(res.data.total_resto ?? 0)
+        }
+        const res = await api.get(url)
+        setResumen(res.data.resumen ?? [])
+        setTotalPlanilla(res.data.total_planilla ?? 0)
+        setTotalProduccion(res.data.total_produccion ?? 0)
+        setTotalResto(res.data.total_resto ?? 0)
     } catch {
-      setResumen([])
+        setResumen([])
     } finally {
-      setLoading(false)
+        setLoading(false)
     }
-  }
+    }
 
-  useEffect(() => { cargar() }, [mes, anio, modo])
+  useEffect(() => {
+    if (modo === 'mes') {
+        cargar()
+    }
+  }, [mes, anio, modo])
 
   const filtrados = resumen
     .filter(r => filtroCargo ? r.trabajador_cargo === filtroCargo : true)
