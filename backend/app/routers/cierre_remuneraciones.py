@@ -68,10 +68,25 @@ async def cierre_remuneraciones(
                         OrdenTrabajo.fecha >= fd,
                         OrdenTrabajo.fecha < fh_exclusiva,
                         OrdenTrabajo.estado.in_(['completada', 'pendiente']),
+                        OrdenTrabajo.tipo != 'reparacion',
                     )
                 )
-                ots = result_ots.scalars().all()
-                sueldo_efectivo = sum(o.precio_aplicado or 0 for o in ots)
+                ots_produccion = result_ots.scalars().all()
+
+                result_reps = await db.execute(
+                    select(OrdenTrabajo).where(
+                        OrdenTrabajo.trabajador_id == t.id,
+                        OrdenTrabajo.fecha >= fd,
+                        OrdenTrabajo.fecha < fh_exclusiva,
+                        OrdenTrabajo.tipo == 'reparacion',
+                    )
+                )
+                ots_reparacion = result_reps.scalars().all()
+
+                sueldo_efectivo = (
+                    sum(o.precio_aplicado or 0 for o in ots_produccion) +
+                    sum(o.precio_aplicado or 0 for o in ots_reparacion)
+                )
                 es_produccion = True
             else:
                 sueldo_efectivo = sueldo_base_registrado
