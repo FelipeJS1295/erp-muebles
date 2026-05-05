@@ -315,13 +315,10 @@ async def sincronizar_ordenes_walmart(
     try:
         guardadas = 0
         actualizadas = 0
-
-        # Traer todos los estados posibles
         estados = ["Created", "Acknowledged", "Shipped", "Cancelled"]
 
         for estado in estados:
             data = await walmart_service.obtener_ordenes(estado=estado, dias=dias)
-            ordenes = data.get("ordenes", [])
             ordenes = data.get("ordenes", [])
             print(f"📦 Walmart {estado}: {len(ordenes)} órdenes")
 
@@ -362,12 +359,26 @@ async def sincronizar_ordenes_walmart(
                     db.add(nueva)
                     guardadas += 1
 
-                # Auto-crear producto interno
                 for prod in o.get("productos", []):
                     sku = prod.get("sku")
                     nombre = prod.get("nombre")
                     if sku:
                         await auto_crear_producto_interno(sku, nombre, 'walmart', sku, db)
+
+        # Auto-marcar como despachadas órdenes cuya fecha ya pasó
+        from datetime import date
+        hoy_str = date.today().strftime('%Y-%m-%d')
+        result_viejas = await db.execute(
+            select(Orden).where(
+                Orden.marketplace == MarketplaceEnum.walmart,
+                Orden.estado_marketplace.in_(['Created', 'Acknowledged']),
+                Orden.fecha_despacho < hoy_str,
+            )
+        )
+        viejas = result_viejas.scalars().all()
+        for v in viejas:
+            v.estado_marketplace = 'Shipped'
+            print(f"✅ Auto-despachada Walmart: {v.orden_id_marketplace}")
 
         await db.commit()
         return {
