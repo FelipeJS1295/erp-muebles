@@ -39,6 +39,9 @@ interface Orden {
 // =============================================================================
 
 function getEstadoUnificado(orden: any): string {
+  // Órdenes de fulfillment se consideran siempre despachadas
+  if (orden.fulfillment === 'by-paris') return 'Despachada'
+
   const now = new Date()
   const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
@@ -505,7 +508,7 @@ export default function Ordenes() {
                             border: '0.5px solid var(--border)', background: 'var(--bg)',
                             color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap',
                           }}>Ver</button>
-                          {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && (
+                          {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && o.fulfillment !== 'by-paris' && (
                             o.boleta_folio ? (
                               <button onClick={() => window.open(`/api/v1/boletas/${o.id}/pdf-view`, '_blank')} style={{
                                 fontSize: '11px', padding: '5px 10px', borderRadius: '5px',

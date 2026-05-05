@@ -22,6 +22,7 @@ const getHoy = () => {
 }
 
 function getEstadoUnificado(orden: any): string {
+  if (orden.fulfillment === 'by-paris') return 'Despachada'
   const hoy = getHoy()
   if (orden.fecha_despacho) {
     const d = parseFecha(orden.fecha_despacho)
