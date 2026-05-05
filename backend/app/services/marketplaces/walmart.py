@@ -91,6 +91,8 @@ class WalmartChileService:
                     pagina = 0
                     while True:
                         pagina += 1
+                        if pagina > 3:
+                            break
                         params = {
                             "status": est,
                             "limit": 200,
