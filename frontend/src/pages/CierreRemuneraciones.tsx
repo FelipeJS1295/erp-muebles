@@ -1,4 +1,3 @@
-// frontend/src/pages/CierreRemuneraciones.tsx
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 
