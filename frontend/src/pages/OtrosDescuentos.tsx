@@ -103,21 +103,23 @@ export default function OtrosDescuentos() {
   }
 
   const cargarTrabajadores = async () => {
-    try {
-      const res = await api.get('/remuneraciones')
-      setTrabajadores(
-        (res.data.remuneraciones ?? []).map((r: any) => ({
-          id: r.trabajador_id,
-          nombre_completo: r.trabajador_nombre,
-          rut: r.trabajador_rut,
-          cargo: r.trabajador_cargo,
-          sueldo_base: r.sueldo_base,
-        }))
-      )
-    } catch {
-      setTrabajadores([])
+      try {
+        const res = await api.get('/trabajadores')
+        setTrabajadores(
+          (res.data.trabajadores ?? [])
+            .filter((t: any) => t.activo === 1 || t.activo === true)
+            .map((t: any) => ({
+              id: t.id,
+              nombre_completo: t.nombre_completo,
+              rut: t.rut,
+              cargo: t.cargo,
+              sueldo_base: t.sueldo_base || 0,
+            }))
+        )
+      } catch {
+        setTrabajadores([])
+      }
     }
-  }
 
   useEffect(() => { cargar() }, [filtroActivo])
 
