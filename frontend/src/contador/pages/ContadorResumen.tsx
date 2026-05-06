@@ -26,6 +26,7 @@ interface Trabajador {
   total_otros_descuentos: number
   otros_desc_detalle: any[]
   total: number
+  descuento_boleta?: number
 }
 
 interface Resumen {
@@ -64,16 +65,24 @@ export default function ContadorResumen({ mes, anio }: Props) {
       const tiposMap: Record<string, string> = tiposRes.data.tipos || {}
       setTipos(tiposMap)
 
-      const contrato = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'contrato')
-      const boleta = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'boleta')
+    const contrato = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'contrato')
+    const boletaRaw = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'boleta')
 
-      setData({
-        contrato,
-        boleta,
-        total_contrato: contrato.reduce((a, t) => a + t.total, 0),
-        total_boleta: boleta.reduce((a, t) => a + t.total, 0),
-        gran_total: contrato.reduce((a, t) => a + t.total, 0) + boleta.reduce((a, t) => a + t.total, 0),
-      })
+    // Para boleta: solo sueldo base con descuento 15.25%
+    const DESCUENTO_BOLETA = 0.1525
+    const boleta = boletaRaw.map(t => ({
+    ...t,
+    descuento_boleta: Math.round(t.sueldo_base_registrado * DESCUENTO_BOLETA),
+    total: Math.round(t.sueldo_base_registrado * (1 - DESCUENTO_BOLETA)),
+    }))
+
+    setData({
+    contrato,
+    boleta,
+    total_contrato: contrato.reduce((a, t) => a + t.total, 0),
+    total_boleta: boleta.reduce((a, t) => a + t.total, 0),
+    gran_total: contrato.reduce((a, t) => a + t.total, 0) + boleta.reduce((a, t) => a + t.total, 0),
+    })
     } catch {
       setError('No se pudo cargar el resumen')
     } finally {
@@ -115,17 +124,23 @@ export default function ContadorResumen({ mes, anio }: Props) {
               <th style={TH}>Nombre</th>
               <th style={TH}>RUT</th>
               <th style={TH}>Cargo</th>
-              <th style={{ ...TH, textAlign: 'right' }}>
-                {tipo === 'boleta' ? 'Monto Boleta' : 'Sueldo Base'}
-              </th>
-              {tipo === 'contrato' && <>
+                <th style={{ ...TH, textAlign: 'right' }}>
+                {tipo === 'boleta' ? 'Monto Bruto' : 'Sueldo Base'}
+                </th>
+                {tipo === 'contrato' && <>
                 <th style={{ ...TH, textAlign: 'right' }}>Hrs Extra</th>
                 <th style={{ ...TH, textAlign: 'right' }}>Días Extra</th>
                 <th style={{ ...TH, textAlign: 'right' }}>Bonos</th>
-              </>}
-              <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Días Faltantes</th>
-              <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Otros Desc.</th>
-              <th style={{ ...TH, textAlign: 'right', color: '#059669' }}>Total</th>
+                </>}
+                {tipo === 'boleta' ? (
+                <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Desc. Boleta (15.25%)</th>
+                ) : (
+                <>
+                    <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Días Faltantes</th>
+                    <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Otros Desc.</th>
+                </>
+                )}
+                <th style={{ ...TH, textAlign: 'right', color: '#059669' }}>Total Líquido</th>
             </tr>
           </thead>
           <tbody>
@@ -179,21 +194,29 @@ export default function ContadorResumen({ mes, anio }: Props) {
                     {t.total_bonos > 0 ? fmt(t.total_bonos) : '—'}
                   </td>
                 </>}
-                <td style={{ ...TD, textAlign: 'right', color: t.total_descuentos > 0 ? '#dc2626' : '#9ca3af' }}>
-                  {t.total_descuentos > 0 ? `-${fmt(t.total_descuentos)}` : '—'}
-                  {t.dias_faltantes_qty > 0 && (
-                    <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '4px' }}>
-                      ({t.dias_faltantes_qty}d)
-                    </span>
-                  )}
-                </td>
-                <td style={{ ...TD, textAlign: 'right', color: t.total_otros_descuentos > 0 ? '#dc2626' : '#9ca3af' }}>
-                  {t.total_otros_descuentos > 0 ? (
-                    <span title={t.otros_desc_detalle?.map((d: any) => d.descripcion).join(', ')}>
-                      -{fmt(t.total_otros_descuentos)}
-                    </span>
-                  ) : '—'}
-                </td>
+                    {tipo === 'boleta' ? (
+                    <td style={{ ...TD, textAlign: 'right', color: '#dc2626', fontWeight: 500 }}>
+                        -{fmt(t.descuento_boleta ?? 0)}
+                    </td>
+                    ) : (
+                    <>
+                        <td style={{ ...TD, textAlign: 'right', color: t.total_descuentos > 0 ? '#dc2626' : '#9ca3af' }}>
+                        {t.total_descuentos > 0 ? `-${fmt(t.total_descuentos)}` : '—'}
+                        {t.dias_faltantes_qty > 0 && (
+                            <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '4px' }}>
+                            ({t.dias_faltantes_qty}d)
+                            </span>
+                        )}
+                        </td>
+                        <td style={{ ...TD, textAlign: 'right', color: t.total_otros_descuentos > 0 ? '#dc2626' : '#9ca3af' }}>
+                        {t.total_otros_descuentos > 0 ? (
+                            <span title={t.otros_desc_detalle?.map((d: any) => d.descripcion).join(', ')}>
+                            -{fmt(t.total_otros_descuentos)}
+                            </span>
+                        ) : '—'}
+                        </td>
+                    </>
+                    )}
                 <td style={{ ...TD, textAlign: 'right', fontWeight: 700, color: '#059669', fontSize: '14px' }}>
                   {fmt(t.total)}
                 </td>
@@ -202,7 +225,7 @@ export default function ContadorResumen({ mes, anio }: Props) {
           </tbody>
           <tfoot>
             <tr style={{ background: '#f0fdf4' }}>
-              <td colSpan={tipo === 'contrato' ? 9 : 6} style={{
+              <td colSpan={tipo === 'contrato' ? 9 : 5} style={{
                 padding: '12px 14px', fontWeight: 700, fontSize: '13px', color: '#065f46',
                 textAlign: 'right', borderTop: '2px solid #d1fae5',
               }}>
