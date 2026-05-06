@@ -8,7 +8,7 @@ interface Props {
   onLogout: () => void
 }
 
-const CARGOS_PRODUCCION = ['cortador', 'costurero', 'tapicero', 'terminaciones', 'bodega']
+const CARGOS_PRODUCCION = ['corte', 'costura', 'tapiceria', 'esqueleteria']
 
 export default function WorkerHome({ trabajador, onLogout }: Props) {
   const esProduccion = CARGOS_PRODUCCION.includes(trabajador.cargo)
