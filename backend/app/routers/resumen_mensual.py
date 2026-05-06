@@ -50,7 +50,6 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                         OrdenTrabajo.fecha >= fecha_desde,
                         OrdenTrabajo.fecha < fecha_hasta,
                         OrdenTrabajo.estado.in_(['completada', 'pendiente']),
-                        OrdenTrabajo.tipo != 'reparacion',
                     )
                 )
                 ots = result_ots.scalars().all()
