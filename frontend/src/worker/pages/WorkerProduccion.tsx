@@ -47,16 +47,16 @@ export default function WorkerProduccion({ trabajadorId }: Props) {
       if (modo === 'mes') {
         const primerDia = new Date(anio, mes, 1)
         const ultimoDia = new Date(anio, mes + 1, 0)
-        params.desde = primerDia.toISOString().split('T')[0]
-        params.hasta = ultimoDia.toISOString().split('T')[0]
+        params.fecha_desde = primerDia.toISOString().split('T')[0]
+        params.fecha_hasta = ultimoDia.toISOString().split('T')[0]
       } else {
         if (!desde || !hasta) { setLoading(false); return }
-        params.desde = desde
-        params.hasta = hasta
+        params.fecha_desde = desde
+        params.fecha_hasta = hasta
       }
 
       const res = await api.get('/ordenes-trabajo', { params })
-      setOts(res.data.ordenes_trabajo || [])
+      setOts(res.data.ordenes || [])
     } catch {
       setError('No se pudo cargar la producción')
     } finally {
