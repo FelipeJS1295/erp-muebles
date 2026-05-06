@@ -27,6 +27,7 @@ import LiquidacionWalmart from './pages/LiquidacionWalmart'
 import Anticipos from './pages/Anticipos'
 import CierreRemuneraciones from './pages/CierreRemuneraciones'
 import WorkerApp from './worker/WorkerApp'
+import ContadorApp from './contador/ContadorApp'
 import Contadores from './pages/Contadores'
 
 type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes' | 'liquidacion-paris' | 'liquidacion-walmart' | 'anticipos' | 'cierre-remuneraciones' | 'contadores'
@@ -83,6 +84,9 @@ export default function App() {
   // Detectar si estamos en la ruta /worker
   if (window.location.pathname.startsWith('/worker')) {
     return <WorkerApp />
+  }
+  if (window.location.pathname.startsWith('/contador')) {
+    return <ContadorApp />
   }
 
   useEffect(() => {
