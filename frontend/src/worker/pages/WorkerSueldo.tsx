@@ -9,6 +9,7 @@ interface ResumenMes {
   trabajador_id: number
   trabajador_nombre: string
   sueldo_base: number
+  es_produccion: boolean
   horas_extras: { total_horas: number; monto_total: number }
   dias_extras: { total_dias: number; monto_total: number }
   bonos: { monto_total: number }
@@ -51,6 +52,7 @@ export default function WorkerSueldo({ trabajadorId }: Props) {
     setData({
       trabajador_id: trabajador.trabajador_id,
       trabajador_nombre: trabajador.trabajador_nombre,
+      es_produccion: trabajador.es_produccion,
       sueldo_base: trabajador.sueldo_base,
       horas_extras: { total_horas: trabajador.horas_extras_qty, monto_total: trabajador.total_horas_extras },
       dias_extras: { total_dias: trabajador.dias_extras_qty, monto_total: trabajador.total_dias_extras },
@@ -149,24 +151,27 @@ export default function WorkerSueldo({ trabajadorId }: Props) {
               <span>📈</span> Haberes
             </div>
 
-            <Fila label="Sueldo base" valor={data.sueldo_base} />
-
-            {data.horas_extras?.monto_total > 0 && (
-              <Fila
-                label={`Horas extras (${data.horas_extras.total_horas}h)`}
-                valor={data.horas_extras.monto_total}
-              />
-            )}
-
-            {data.dias_extras?.monto_total > 0 && (
-              <Fila
-                label={`Días extras (${data.dias_extras.total_dias} días)`}
-                valor={data.dias_extras.monto_total}
-              />
-            )}
-
-            {data.bonos?.monto_total > 0 && (
-              <Fila label="Bonos" valor={data.bonos.monto_total} />
+            {data.es_produccion ? (
+              <Fila label="Total producción del mes" valor={data.sueldo_base} bold />
+            ) : (
+              <>
+                <Fila label="Sueldo base" valor={data.sueldo_base} />
+                {data.horas_extras?.monto_total > 0 && (
+                  <Fila
+                    label={`Horas extras (${data.horas_extras.total_horas}h)`}
+                    valor={data.horas_extras.monto_total}
+                  />
+                )}
+                {data.dias_extras?.monto_total > 0 && (
+                  <Fila
+                    label={`Días extras (${data.dias_extras.total_dias} días)`}
+                    valor={data.dias_extras.monto_total}
+                  />
+                )}
+                {data.bonos?.monto_total > 0 && (
+                  <Fila label="Bonos" valor={data.bonos.monto_total} />
+                )}
+              </>
             )}
 
             <Fila label="Total haberes" valor={data.total_haberes} bold highlight="green" />
