@@ -20,6 +20,7 @@ from app.routers.dashboard_stats import router as dashboard_stats_router
 from app.routers.liquidaciones import router as liquidaciones_router
 from app.routers.cierre_remuneraciones import router as cierre_remuneraciones_router
 from app.routers.anticipos import router as anticipos_router
+from app.routers.contadores import router as contadores_router
 from app.routers.bonos import router as bonos_router
 from app.routers.boletas import router as boletas_router
 from app.routers.api_clientes import router as api_clientes_router
@@ -117,6 +118,7 @@ app.include_router(otros_descuentos_router)
 app.include_router(dashboard_stats_router)
 app.include_router(liquidaciones_router)
 app.include_router(anticipos_router)
+app.include_router(contadores_router)
 app.include_router(cierre_remuneraciones_router)
 
 # =============================================================================
