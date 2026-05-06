@@ -27,8 +27,9 @@ import LiquidacionWalmart from './pages/LiquidacionWalmart'
 import Anticipos from './pages/Anticipos'
 import CierreRemuneraciones from './pages/CierreRemuneraciones'
 import WorkerApp from './worker/WorkerApp'
+import Contadores from './pages/Contadores'
 
-type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes' | 'liquidacion-paris' | 'liquidacion-walmart' | 'anticipos' | 'cierre-remuneraciones'
+type Page = 'dashboard' | 'ordenes' | 'productos' | 'productos-internos' | 'insumos' | 'trabajadores' | 'usuarios' | 'ordenes-trabajo' | 'ordenes-manual' | 'clientes' | 'api-clientes' | 'gastos' | 'remuneraciones' | 'horas-extras' | 'dias-extras' | 'bonos' | 'dias-faltantes' | 'resumen-mensual' | 'otros-descuentos' | 'venta-ordenes' | 'liquidacion-paris' | 'liquidacion-walmart' | 'anticipos' | 'cierre-remuneraciones' | 'contadores'
 
 const s = {
   app: { display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' } as React.CSSProperties,
@@ -235,6 +236,9 @@ export default function App() {
             <div style={s.sectionLabel}>Integraciones</div>
             <NavItem id="api-clientes" label="APIs de Clientes" active={page === 'api-clientes'} onClick={() => setPage('api-clientes')}
               icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 5h12M1 9h12M5 1v12M9 1v12"/></svg>}/>
+            <NavItem id="contadores" label="Contadores" active={page === 'contadores'} onClick={() => setPage('contadores')}
+              icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-3"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>}
+            />
             <NavItem id="clientes" label="Clientes" active={page === 'clientes'} onClick={() => setPage('clientes')}
               icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="7" cy="4" r="3"/><path d="M1 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>}/>
             {usuario.rol === 'admin_master' && <>
@@ -304,6 +308,7 @@ export default function App() {
         {page === 'liquidacion-walmart' && <LiquidacionWalmart />}
         {page === 'anticipos' && <Anticipos />}
         {page === 'cierre-remuneraciones' && <CierreRemuneraciones />}
+        {page === 'contadores' && <Contadores />}
       </main>
     </div>
   )
