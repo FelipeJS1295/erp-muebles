@@ -70,11 +70,15 @@ export default function ContadorResumen({ mes, anio }: Props) {
 
     // Para boleta: solo sueldo base con descuento 15.25%
     const DESCUENTO_BOLETA = 0.1525
-    const boleta = boletaRaw.map(t => ({
-    ...t,
-    descuento_boleta: Math.round(t.sueldo_base_registrado * DESCUENTO_BOLETA),
-    total: Math.round(t.sueldo_base_registrado * (1 - DESCUENTO_BOLETA)),
-    }))
+    const boleta = boletaRaw.map(t => {
+    const bruto = t.sueldo_base_registrado > 0 ? t.sueldo_base_registrado : t.sueldo_base
+    return {
+        ...t,
+        sueldo_base: bruto,
+        descuento_boleta: Math.round(bruto * DESCUENTO_BOLETA),
+        total: Math.round(bruto * (1 - DESCUENTO_BOLETA)),
+    }
+    })
 
     setData({
     contrato,
