@@ -65,7 +65,22 @@ export default function ContadorResumen({ mes, anio }: Props) {
       const tiposMap: Record<string, string> = tiposRes.data.tipos || {}
       setTipos(tiposMap)
 
-    const contrato = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'contrato')
+    const TOPE_CONTRATO = 600000
+    const BASE_TOPE_CONTRATO = 539000
+
+    const contrato = todosLosT
+    .filter(t => tiposMap[String(t.trabajador_id)] === 'contrato')
+    .map(t => {
+        if (t.sueldo_base > TOPE_CONTRATO) {
+        const diferencia = t.sueldo_base - BASE_TOPE_CONTRATO
+        return {
+            ...t,
+            sueldo_base: BASE_TOPE_CONTRATO,
+            total: Math.round(t.total - diferencia),
+        }
+        }
+        return t
+    })
     const boletaRaw = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'boleta')
 
     // Para boleta: solo sueldo base con descuento 15.25%
