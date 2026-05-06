@@ -13,9 +13,16 @@ const MESES = [
 ]
 
 export default function ContadorHome({ contador, onLogout }: Props) {
-  const hoy = new Date()
-  const [mes, setMes] = useState(hoy.getMonth() + 1)
-  const [anio, setAnio] = useState(hoy.getFullYear())
+    const hoy = new Date()
+    const dia = hoy.getDate()
+    const mesPorDefecto = dia <= 15
+    ? (hoy.getMonth() === 0 ? 12 : hoy.getMonth())
+    : hoy.getMonth() + 1
+    const anioPorDefecto = dia <= 15 && hoy.getMonth() === 0
+    ? hoy.getFullYear() - 1
+    : hoy.getFullYear()
+    const [mes, setMes] = useState(mesPorDefecto)
+    const [anio, setAnio] = useState(anioPorDefecto)
   const anios = [hoy.getFullYear() - 1, hoy.getFullYear()]
 
   const IS: React.CSSProperties = {
