@@ -110,8 +110,7 @@ export default function ContadorResumen({ mes, anio }: Props) {
       const boleta = todosLosT
         .filter(t => tiposMap[String(t.trabajador_id)] === 'boleta')
         .map(t => {
-          const brutoReal = t.sueldo_base_registrado > 0 ? t.sueldo_base_registrado : t.sueldo_base
-          const bruto = brutoReal > TOPE ? BASE_TOPE : brutoReal
+        const bruto = t.sueldo_base_registrado > 0 ? t.sueldo_base_registrado : t.sueldo_base
           const descuento = Math.round(bruto * DESCUENTO_BOLETA)
           return {
             ...t,
