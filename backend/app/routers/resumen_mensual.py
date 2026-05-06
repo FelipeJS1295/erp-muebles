@@ -11,6 +11,7 @@ from app.models.bono import Bono
 from app.models.dia_faltante import DiaFaltante
 from app.models.orden_trabajo import OrdenTrabajo
 from app.models.otro_descuento import OtroDescuento
+from app.models.anticipo import Anticipo
 
 router = APIRouter(prefix="/api/v1/resumen-mensual", tags=["Resumen Mensual"])
 
@@ -134,6 +135,19 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                 for od in otros_desc
             ]
 
+            # Anticipos del mes
+            result_ant = await db.execute(
+                select(Anticipo).where(
+                    Anticipo.trabajador_id == t.id,
+                    Anticipo.fecha >= fecha_desde,
+                    Anticipo.fecha < fecha_hasta,
+                    Anticipo.estado == 'pagado',
+                )
+            )
+            anticipos = result_ant.scalars().all()
+            total_anticipos = sum(a.monto for a in anticipos)
+            anticipos_qty = len(anticipos)
+
             total = (
                 sueldo_efectivo
                 + total_horas_extras
@@ -141,6 +155,7 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                 + total_bonos
                 - total_descuentos
                 - total_otros_descuentos
+                - total_anticipos
             )
 
             resumen.append({
@@ -162,6 +177,8 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                 "otros_desc_qty": otros_desc_qty,
                 "total_otros_descuentos": round(total_otros_descuentos, 2),
                 "otros_desc_detalle": otros_desc_detalle,
+                "anticipos_qty": anticipos_qty,
+                "total_anticipos": round(total_anticipos, 2),
                 "total": round(total, 2),
             })
 

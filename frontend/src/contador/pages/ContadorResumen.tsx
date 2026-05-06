@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../api/client'
+import * as XLSX from 'xlsx'
 
 interface Props {
   mes: number
@@ -25,8 +26,13 @@ interface Trabajador {
   otros_desc_qty: number
   total_otros_descuentos: number
   otros_desc_detalle: any[]
+  anticipos_qty: number
+  total_anticipos: number
   total: number
-  descuento_boleta?: number
+  // calculados
+  sueldo_base_contabilidad: number
+  bono_produccion: number
+  total_liquido: number
 }
 
 interface Resumen {
@@ -42,12 +48,15 @@ const MESES = [
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
 ]
 
+const BASE_TOPE = 539000
+const TOPE = 600000
+const DESCUENTO_BOLETA = 0.1525
+
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n)
 
 export default function ContadorResumen({ mes, anio }: Props) {
   const [data, setData] = useState<Resumen | null>(null)
-  const [tipos, setTipos] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'contrato' | 'boleta'>('contrato')
@@ -63,45 +72,64 @@ export default function ContadorResumen({ mes, anio }: Props) {
 
       const todosLosT: Trabajador[] = resumenRes.data.resumen || []
       const tiposMap: Record<string, string> = tiposRes.data.tipos || {}
-      setTipos(tiposMap)
 
-    const TOPE_CONTRATO = 600000
-    const BASE_TOPE_CONTRATO = 539000
+      // CONTRATOS
+      const contrato = todosLosT
+        .filter(t => tiposMap[String(t.trabajador_id)] === 'contrato')
+        .map(t => {
+          let sueldo_base_contabilidad: number
+          let bono_produccion: number
 
-    const contrato = todosLosT
-    .filter(t => tiposMap[String(t.trabajador_id)] === 'contrato')
-    .map(t => {
-        if (t.sueldo_base > TOPE_CONTRATO) {
-        const diferencia = t.sueldo_base - BASE_TOPE_CONTRATO
-        return {
+          if (t.es_produccion) {
+            // Producción: sueldo base siempre 539.000, bono = producción - 539.000
+            sueldo_base_contabilidad = BASE_TOPE
+            bono_produccion = Math.max(0, t.sueldo_base - BASE_TOPE)
+          } else {
+            // No producción: sueldo base tope 539.000 si supera 600.000
+            sueldo_base_contabilidad = t.sueldo_base_registrado > TOPE ? BASE_TOPE : t.sueldo_base_registrado
+            // bono = horas extras + días extras + bonos
+            bono_produccion = t.total_horas_extras + t.total_dias_extras + t.total_bonos
+          }
+
+          const total_liquido = Math.round(
+            sueldo_base_contabilidad
+            + bono_produccion
+            - t.total_descuentos
+            - t.total_otros_descuentos
+            - t.total_anticipos
+          )
+
+          return {
             ...t,
-            sueldo_base: BASE_TOPE_CONTRATO,
-            total: Math.round(t.total - diferencia),
-        }
-        }
-        return t
-    })
-    const boletaRaw = todosLosT.filter(t => tiposMap[String(t.trabajador_id)] === 'boleta')
+            sueldo_base_contabilidad,
+            bono_produccion,
+            total_liquido,
+          }
+        })
 
-    // Para boleta: solo sueldo base con descuento 15.25%
-    const DESCUENTO_BOLETA = 0.1525
-    const boleta = boletaRaw.map(t => {
-    const bruto = t.sueldo_base_registrado > 0 ? t.sueldo_base_registrado : t.sueldo_base
-    return {
-        ...t,
-        sueldo_base: bruto,
-        descuento_boleta: Math.round(bruto * DESCUENTO_BOLETA),
-        total: Math.round(bruto * (1 - DESCUENTO_BOLETA)),
-    }
-    })
+      // BOLETAS
+      const boleta = todosLosT
+        .filter(t => tiposMap[String(t.trabajador_id)] === 'boleta')
+        .map(t => {
+          const brutoReal = t.sueldo_base_registrado > 0 ? t.sueldo_base_registrado : t.sueldo_base
+          const bruto = brutoReal > TOPE ? BASE_TOPE : brutoReal
+          const descuento = Math.round(bruto * DESCUENTO_BOLETA)
+          return {
+            ...t,
+            sueldo_base_contabilidad: bruto,
+            bono_produccion: 0,
+            total_liquido: bruto - descuento,
+            descuento_boleta: descuento,
+          }
+        })
 
-    setData({
-    contrato,
-    boleta,
-    total_contrato: contrato.reduce((a, t) => a + t.total, 0),
-    total_boleta: boleta.reduce((a, t) => a + t.total, 0),
-    gran_total: contrato.reduce((a, t) => a + t.total, 0) + boleta.reduce((a, t) => a + t.total, 0),
-    })
+      setData({
+        contrato,
+        boleta,
+        total_contrato: contrato.reduce((a, t) => a + t.total_liquido, 0),
+        total_boleta: boleta.reduce((a, t) => a + t.total_liquido, 0),
+        gran_total: contrato.reduce((a, t) => a + t.total_liquido, 0) + boleta.reduce((a, t) => a + t.total_liquido, 0),
+      })
     } catch {
       setError('No se pudo cargar el resumen')
     } finally {
@@ -111,156 +139,63 @@ export default function ContadorResumen({ mes, anio }: Props) {
 
   useEffect(() => { cargar() }, [mes, anio])
 
+  const descargarExcel = () => {
+    if (!data) return
+    const nombreMes = MESES[mes - 1]
+
+    // Hoja contratos
+    const filasContrato = data.contrato.map(t => ({
+      'Nombre': t.trabajador_nombre,
+      'RUT': t.trabajador_rut,
+      'Cargo': t.trabajador_cargo,
+      'Sueldo Base': t.sueldo_base_contabilidad,
+      'Bono Producción': t.bono_produccion,
+      'Anticipos': t.total_anticipos,
+      'Total Líquido': t.total_liquido,
+    }))
+    filasContrato.push({
+      'Nombre': 'TOTAL',
+      'RUT': '',
+      'Cargo': '',
+      'Sueldo Base': data.contrato.reduce((a, t) => a + t.sueldo_base_contabilidad, 0),
+      'Bono Producción': data.contrato.reduce((a, t) => a + t.bono_produccion, 0),
+      'Anticipos': data.contrato.reduce((a, t) => a + t.total_anticipos, 0),
+      'Total Líquido': data.total_contrato,
+    })
+
+    // Hoja boletas
+    const filasBoleta = data.boleta.map((t: any) => ({
+      'Nombre': t.trabajador_nombre,
+      'RUT': t.trabajador_rut,
+      'Cargo': t.trabajador_cargo,
+      'Monto Bruto': t.sueldo_base_contabilidad,
+      'Desc. Boleta (15.25%)': t.descuento_boleta,
+      'Total Líquido': t.total_liquido,
+    }))
+    filasBoleta.push({
+      'Nombre': 'TOTAL',
+      'RUT': '',
+      'Cargo': '',
+      'Monto Bruto': data.boleta.reduce((a, t: any) => a + t.sueldo_base_contabilidad, 0),
+      'Desc. Boleta (15.25%)': data.boleta.reduce((a, t: any) => a + t.descuento_boleta, 0),
+      'Total Líquido': data.total_boleta,
+    })
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filasContrato), 'Contratos')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filasBoleta), 'Boletas')
+    XLSX.writeFile(wb, `Remuneraciones_${nombreMes}_${anio}.xlsx`)
+  }
+
   const TH: React.CSSProperties = {
     padding: '10px 14px', textAlign: 'left', fontSize: '11px',
     fontWeight: 600, color: '#6b7280', borderBottom: '1px solid #e5e7eb',
     textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap',
     background: '#f9fafb',
   }
-
   const TD: React.CSSProperties = {
     padding: '11px 14px', fontSize: '13px', color: '#374151',
     borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap',
-  }
-
-  const renderTabla = (trabajadores: Trabajador[], tipo: 'contrato' | 'boleta') => {
-    const total = trabajadores.reduce((a, t) => a + t.total, 0)
-
-    if (trabajadores.length === 0) return (
-      <div style={{
-        padding: '40px', textAlign: 'center', color: '#9ca3af', fontSize: '14px',
-        background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb',
-      }}>
-        No hay trabajadores con {tipo === 'contrato' ? 'contrato' : 'boleta'} este mes
-      </div>
-    )
-
-    return (
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={TH}>Nombre</th>
-              <th style={TH}>RUT</th>
-              <th style={TH}>Cargo</th>
-                <th style={{ ...TH, textAlign: 'right' }}>
-                {tipo === 'boleta' ? 'Monto Bruto' : 'Sueldo Base'}
-                </th>
-                {tipo === 'contrato' && <>
-                <th style={{ ...TH, textAlign: 'right' }}>Hrs Extra</th>
-                <th style={{ ...TH, textAlign: 'right' }}>Días Extra</th>
-                <th style={{ ...TH, textAlign: 'right' }}>Bonos</th>
-                </>}
-                {tipo === 'boleta' ? (
-                <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Desc. Boleta (15.25%)</th>
-                ) : (
-                <>
-                    <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Días Faltantes</th>
-                    <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Otros Desc.</th>
-                </>
-                )}
-                <th style={{ ...TH, textAlign: 'right', color: '#059669' }}>Total Líquido</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trabajadores.map(t => (
-              <tr key={t.trabajador_id} style={{ transition: 'background 0.1s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'white')}
-              >
-                <td style={{ ...TD, fontWeight: 500, color: '#111827' }}>
-                  {t.trabajador_nombre}
-                  {t.es_produccion && (
-                    <span style={{
-                      marginLeft: '6px', fontSize: '10px', padding: '1px 6px',
-                      borderRadius: '20px', background: '#dbeafe', color: '#1d4ed8',
-                      fontWeight: 600,
-                    }}>
-                      Producción
-                    </span>
-                  )}
-                </td>
-                <td style={{ ...TD, color: '#6b7280' }}>{t.trabajador_rut}</td>
-                <td style={TD}>
-                  <span style={{
-                    fontSize: '11px', padding: '2px 8px', borderRadius: '20px',
-                    background: '#f3f4f6', color: '#374151', fontWeight: 500,
-                  }}>
-                    {t.trabajador_cargo}
-                  </span>
-                </td>
-                <td style={{ ...TD, textAlign: 'right', fontWeight: 500 }}>
-                  {fmt(t.sueldo_base)}
-                </td>
-                {tipo === 'contrato' && <>
-                  <td style={{ ...TD, textAlign: 'right', color: t.total_horas_extras > 0 ? '#059669' : '#9ca3af' }}>
-                    {t.total_horas_extras > 0 ? fmt(t.total_horas_extras) : '—'}
-                    {t.horas_extras_qty > 0 && (
-                      <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '4px' }}>
-                        ({t.horas_extras_qty}h)
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ ...TD, textAlign: 'right', color: t.total_dias_extras > 0 ? '#059669' : '#9ca3af' }}>
-                    {t.total_dias_extras > 0 ? fmt(t.total_dias_extras) : '—'}
-                    {t.dias_extras_qty > 0 && (
-                      <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '4px' }}>
-                        ({t.dias_extras_qty}d)
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ ...TD, textAlign: 'right', color: t.total_bonos > 0 ? '#059669' : '#9ca3af' }}>
-                    {t.total_bonos > 0 ? fmt(t.total_bonos) : '—'}
-                  </td>
-                </>}
-                    {tipo === 'boleta' ? (
-                    <td style={{ ...TD, textAlign: 'right', color: '#dc2626', fontWeight: 500 }}>
-                        -{fmt(t.descuento_boleta ?? 0)}
-                    </td>
-                    ) : (
-                    <>
-                        <td style={{ ...TD, textAlign: 'right', color: t.total_descuentos > 0 ? '#dc2626' : '#9ca3af' }}>
-                        {t.total_descuentos > 0 ? `-${fmt(t.total_descuentos)}` : '—'}
-                        {t.dias_faltantes_qty > 0 && (
-                            <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '4px' }}>
-                            ({t.dias_faltantes_qty}d)
-                            </span>
-                        )}
-                        </td>
-                        <td style={{ ...TD, textAlign: 'right', color: t.total_otros_descuentos > 0 ? '#dc2626' : '#9ca3af' }}>
-                        {t.total_otros_descuentos > 0 ? (
-                            <span title={t.otros_desc_detalle?.map((d: any) => d.descripcion).join(', ')}>
-                            -{fmt(t.total_otros_descuentos)}
-                            </span>
-                        ) : '—'}
-                        </td>
-                    </>
-                    )}
-                <td style={{ ...TD, textAlign: 'right', fontWeight: 700, color: '#059669', fontSize: '14px' }}>
-                  {fmt(t.total)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ background: '#f0fdf4' }}>
-              <td colSpan={tipo === 'contrato' ? 9 : 5} style={{
-                padding: '12px 14px', fontWeight: 700, fontSize: '13px', color: '#065f46',
-                textAlign: 'right', borderTop: '2px solid #d1fae5',
-              }}>
-                Total {tipo === 'contrato' ? 'Contrato' : 'Boleta'}
-              </td>
-              <td style={{
-                padding: '12px 14px', textAlign: 'right', fontWeight: 800,
-                fontSize: '15px', color: '#059669', borderTop: '2px solid #d1fae5',
-              }}>
-                {fmt(total)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    )
   }
 
   if (loading) return (
@@ -318,24 +253,175 @@ export default function ContadorResumen({ mes, anio }: Props) {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0', background: 'white', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden', width: 'fit-content' }}>
-        {(['contrato', 'boleta'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '10px 24px', border: 'none', cursor: 'pointer',
-            background: tab === t ? '#059669' : 'white',
-            color: tab === t ? 'white' : '#6b7280',
-            fontSize: '13px', fontWeight: 600,
-            transition: 'all 0.2s',
-          }}>
-            {t === 'contrato' ? `📄 Contratos (${data.contrato.length})` : `🧾 Boletas (${data.boleta.length})`}
-          </button>
-        ))}
+      {/* Tabs + botón excel */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', background: 'white', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          {(['contrato', 'boleta'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '10px 24px', border: 'none', cursor: 'pointer',
+              background: tab === t ? '#059669' : 'white',
+              color: tab === t ? 'white' : '#6b7280',
+              fontSize: '13px', fontWeight: 600, transition: 'all 0.2s',
+            }}>
+              {t === 'contrato' ? `📄 Contratos (${data.contrato.length})` : `🧾 Boletas (${data.boleta.length})`}
+            </button>
+          ))}
+        </div>
+
+        <button onClick={descargarExcel} style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: '#059669', border: 'none', borderRadius: '8px',
+          padding: '10px 18px', color: 'white', fontSize: '13px',
+          fontWeight: 600, cursor: 'pointer',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Descargar Excel
+        </button>
       </div>
 
-      {/* Tabla */}
-      {tab === 'contrato' && renderTabla(data.contrato, 'contrato')}
-      {tab === 'boleta' && renderTabla(data.boleta, 'boleta')}
+      {/* Tabla Contratos */}
+      {tab === 'contrato' && (
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          {data.contrato.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>Sin trabajadores con contrato</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={TH}>Nombre</th>
+                  <th style={TH}>RUT</th>
+                  <th style={TH}>Cargo</th>
+                  <th style={{ ...TH, textAlign: 'right' }}>Sueldo Base</th>
+                  <th style={{ ...TH, textAlign: 'right' }}>Bono Producción</th>
+                  <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Anticipos</th>
+                  <th style={{ ...TH, textAlign: 'right', color: '#059669' }}>Total Líquido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.contrato.map(t => (
+                  <tr key={t.trabajador_id}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                  >
+                    <td style={{ ...TD, fontWeight: 500, color: '#111827' }}>
+                      {t.trabajador_nombre}
+                      {t.es_produccion && (
+                        <span style={{
+                          marginLeft: '6px', fontSize: '10px', padding: '1px 6px',
+                          borderRadius: '20px', background: '#dbeafe', color: '#1d4ed8', fontWeight: 600,
+                        }}>Prod.</span>
+                      )}
+                    </td>
+                    <td style={{ ...TD, color: '#6b7280' }}>{t.trabajador_rut}</td>
+                    <td style={TD}>
+                      <span style={{
+                        fontSize: '11px', padding: '2px 8px', borderRadius: '20px',
+                        background: '#f3f4f6', color: '#374151', fontWeight: 500,
+                      }}>
+                        {t.trabajador_cargo}
+                      </span>
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', fontWeight: 500 }}>
+                      {fmt(t.sueldo_base_contabilidad)}
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', color: t.bono_produccion > 0 ? '#059669' : '#9ca3af' }}>
+                      {t.bono_produccion > 0 ? fmt(t.bono_produccion) : '—'}
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', color: t.total_anticipos > 0 ? '#dc2626' : '#9ca3af' }}>
+                      {t.total_anticipos > 0 ? `-${fmt(t.total_anticipos)}` : '—'}
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', fontWeight: 700, color: '#059669', fontSize: '14px' }}>
+                      {fmt(t.total_liquido)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: '#f0fdf4' }}>
+                  <td colSpan={6} style={{
+                    padding: '12px 14px', fontWeight: 700, fontSize: '13px',
+                    color: '#065f46', textAlign: 'right', borderTop: '2px solid #d1fae5',
+                  }}>
+                    Total Contratos
+                  </td>
+                  <td style={{
+                    padding: '12px 14px', textAlign: 'right', fontWeight: 800,
+                    fontSize: '15px', color: '#059669', borderTop: '2px solid #d1fae5',
+                  }}>
+                    {fmt(data.total_contrato)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Tabla Boletas */}
+      {tab === 'boleta' && (
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          {data.boleta.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>Sin trabajadores con boleta</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={TH}>Nombre</th>
+                  <th style={TH}>RUT</th>
+                  <th style={TH}>Cargo</th>
+                  <th style={{ ...TH, textAlign: 'right' }}>Monto Bruto</th>
+                  <th style={{ ...TH, textAlign: 'right', color: '#dc2626' }}>Desc. Boleta (15.25%)</th>
+                  <th style={{ ...TH, textAlign: 'right', color: '#059669' }}>Total Líquido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.boleta.map((t: any) => (
+                  <tr key={t.trabajador_id}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                  >
+                    <td style={{ ...TD, fontWeight: 500, color: '#111827' }}>{t.trabajador_nombre}</td>
+                    <td style={{ ...TD, color: '#6b7280' }}>{t.trabajador_rut}</td>
+                    <td style={TD}>
+                      <span style={{
+                        fontSize: '11px', padding: '2px 8px', borderRadius: '20px',
+                        background: '#f3f4f6', color: '#374151', fontWeight: 500,
+                      }}>
+                        {t.trabajador_cargo}
+                      </span>
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', fontWeight: 500 }}>{fmt(t.sueldo_base_contabilidad)}</td>
+                    <td style={{ ...TD, textAlign: 'right', color: '#dc2626', fontWeight: 500 }}>
+                      -{fmt(t.descuento_boleta)}
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', fontWeight: 700, color: '#059669', fontSize: '14px' }}>
+                      {fmt(t.total_liquido)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: '#f0fdf4' }}>
+                  <td colSpan={5} style={{
+                    padding: '12px 14px', fontWeight: 700, fontSize: '13px',
+                    color: '#065f46', textAlign: 'right', borderTop: '2px solid #d1fae5',
+                  }}>
+                    Total Boletas
+                  </td>
+                  <td style={{
+                    padding: '12px 14px', textAlign: 'right', fontWeight: 800,
+                    fontSize: '15px', color: '#059669', borderTop: '2px solid #d1fae5',
+                  }}>
+                    {fmt(data.total_boleta)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      )}
 
     </div>
   )
