@@ -3,12 +3,13 @@ import { api } from '../../api/client'
 
 interface OT {
   id: number
-  orden_id: string
-  producto_nombre: string
-  cantidad: number
+  numero_ot: string
+  producto_descripcion: string
+  unidades: number
+  precio_aplicado: number
   estado: string
-  fecha_asignacion: string
-  fecha_entrega?: string
+  fecha: string
+  tipo: string
 }
 
 interface Props {
@@ -68,7 +69,8 @@ export default function WorkerProduccion({ trabajadorId }: Props) {
 
   const anios = [hoy.getFullYear() - 1, hoy.getFullYear()]
 
-  const totalUnidades = ots.reduce((acc, ot) => acc + (ot.cantidad || 0), 0)
+  const totalUnidades = ots.reduce((acc, ot) => acc + (ot.unidades || 0), 0)
+  const totalPesos = ots.reduce((acc, ot) => acc + (ot.precio_aplicado || 0), 0)
   const terminadas = ots.filter(ot => ot.estado === 'terminado').length
 
   const IS: React.CSSProperties = {
@@ -140,8 +142,8 @@ export default function WorkerProduccion({ trabajadorId }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
           {[
             { label: 'Órdenes', valor: ots.length, color: '#2563eb' },
-            { label: 'Unidades', valor: totalUnidades, color: '#7c3aed' },
             { label: 'Terminadas', valor: terminadas, color: '#059669' },
+            { label: 'Total', valor: `$${totalPesos.toLocaleString('es-CL')}`, color: '#7c3aed' },
           ].map(k => (
             <div key={k.label} style={{
               background: 'white', borderRadius: '12px', padding: '14px 10px',
@@ -193,18 +195,28 @@ export default function WorkerProduccion({ trabajadorId }: Props) {
                   </span>
                 </div>
                 <div style={{ fontSize: '14px', color: '#334155', marginBottom: '8px', fontWeight: 500 }}>
-                  {ot.producto_nombre || 'Sin nombre'}
+                  {ot.producto_descripcion || 'Sin descripción'}
                 </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Cantidad: <span style={{ color: '#475569', fontWeight: 600 }}>{ot.cantidad}</span>
-                  </div>
-                  {ot.fecha_asignacion && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {ot.unidades > 0 && (
                     <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                      Asignada: <span style={{ color: '#475569' }}>
-                        {new Date(ot.fecha_asignacion).toLocaleDateString('es-CL')}
+                      Unidades: <span style={{ color: '#475569', fontWeight: 600 }}>{ot.unidades}</span>
+                    </div>
+                  )}
+                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    Monto: <span style={{ color: '#059669', fontWeight: 600 }}>${ot.precio_aplicado?.toLocaleString('es-CL')}</span>
+                  </div>
+                  {ot.fecha && (
+                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Fecha: <span style={{ color: '#475569' }}>
+                        {new Date(ot.fecha).toLocaleDateString('es-CL')}
                       </span>
                     </div>
+                  )}
+                  {ot.tipo === 'reparacion' && (
+                    <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '20px' }}>
+                      Reparación
+                    </span>
                   )}
                 </div>
               </div>
