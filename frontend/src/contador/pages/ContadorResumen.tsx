@@ -80,24 +80,22 @@ export default function ContadorResumen({ mes, anio }: Props) {
           let sueldo_base_contabilidad: number
           let bono_produccion: number
 
-          if (t.es_produccion) {
-            // Producción: sueldo base siempre 539.000, bono = producción - 539.000
+            if (t.es_produccion) {
             sueldo_base_contabilidad = BASE_TOPE
-            bono_produccion = Math.max(0, t.sueldo_base - BASE_TOPE)
-          } else {
+            bono_produccion = t.sueldo_base
+            } else {
             // No producción: sueldo base tope 539.000 si supera 600.000
             sueldo_base_contabilidad = t.sueldo_base_registrado > TOPE ? BASE_TOPE : t.sueldo_base_registrado
             // bono = horas extras + días extras + bonos
             bono_produccion = t.total_horas_extras + t.total_dias_extras + t.total_bonos
           }
 
-          const total_liquido = Math.round(
-            sueldo_base_contabilidad
-            + bono_produccion
+            const total_liquido = Math.round(
+            (t.es_produccion ? bono_produccion : sueldo_base_contabilidad + bono_produccion)
             - t.total_descuentos
             - t.total_otros_descuentos
             - t.total_anticipos
-          )
+            )
 
           return {
             ...t,
