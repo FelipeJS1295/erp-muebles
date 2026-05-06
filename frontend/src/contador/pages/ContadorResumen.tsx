@@ -50,6 +50,7 @@ const MESES = [
 
 const BASE_TOPE = 539000
 const TOPE = 600000
+const TOPE_PRODUCCION = 636000
 const DESCUENTO_BOLETA = 0.1525
 
 const fmt = (n: number) =>
@@ -81,9 +82,9 @@ export default function ContadorResumen({ mes, anio }: Props) {
           let bono_produccion: number
 
             if (t.es_produccion) {
-            sueldo_base_contabilidad = BASE_TOPE
+            sueldo_base_contabilidad = t.sueldo_base_registrado > TOPE_PRODUCCION ? BASE_TOPE : t.sueldo_base_registrado
             bono_produccion = t.sueldo_base
-            } else {
+            }else {
             // No producción: sueldo base tope 539.000 si supera 600.000
             sueldo_base_contabilidad = t.sueldo_base_registrado > TOPE ? BASE_TOPE : t.sueldo_base_registrado
             // bono = horas extras + días extras + bonos
