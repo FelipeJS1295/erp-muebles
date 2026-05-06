@@ -141,7 +141,6 @@ async def resumen_mensual(mes: int, anio: int, db: AsyncSession = Depends(get_db
                     Anticipo.trabajador_id == t.id,
                     Anticipo.fecha >= fecha_desde,
                     Anticipo.fecha < fecha_hasta,
-                    Anticipo.estado == 'pagado',
                 )
             )
             anticipos = result_ant.scalars().all()
