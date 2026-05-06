@@ -41,9 +41,9 @@ export default function WorkerSueldo({ trabajadorId }: Props) {
     setError('')
     setData(null)
     try {
-      const res = await api.get(`/resumen-mensual/${trabajadorId}`, {
-        params: { mes, anio }
-      })
+    const res = await api.get(`/resumen-mensual`, {
+      params: { mes, anio, trabajador_id: trabajadorId }
+    })
       setData(res.data)
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'No se pudo cargar el resumen')
