@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../api/client'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 
 interface Props {
   mes: number
@@ -139,53 +139,227 @@ export default function ContadorResumen({ mes, anio }: Props) {
 
   useEffect(() => { cargar() }, [mes, anio])
 
-  const descargarExcel = () => {
-    if (!data) return
-    const nombreMes = MESES[mes - 1]
+const descargarExcel = () => {
+  if (!data) return
+  const nombreMes = MESES[mes - 1]
+  const fechaHoy = new Date().toLocaleDateString('es-CL')
+  const wb = XLSX.utils.book_new()
 
-    // Hoja contratos
-    const filasContrato = data.contrato.map(t => ({
-      'Nombre': t.trabajador_nombre,
-      'RUT': t.trabajador_rut,
-      'Cargo': t.trabajador_cargo,
-      'Sueldo Base': t.sueldo_base_contabilidad,
-      'Bono Producción': t.bono_produccion,
-      'Anticipos': t.total_anticipos,
-      'Total Líquido': t.total_liquido,
-    }))
-    filasContrato.push({
-      'Nombre': 'TOTAL',
-      'RUT': '',
-      'Cargo': '',
-      'Sueldo Base': data.contrato.reduce((a, t) => a + t.sueldo_base_contabilidad, 0),
-      'Bono Producción': data.contrato.reduce((a, t) => a + t.bono_produccion, 0),
-      'Anticipos': data.contrato.reduce((a, t) => a + t.total_anticipos, 0),
-      'Total Líquido': data.total_contrato,
-    })
-
-    // Hoja boletas
-    const filasBoleta = data.boleta.map((t: any) => ({
-      'Nombre': t.trabajador_nombre,
-      'RUT': t.trabajador_rut,
-      'Cargo': t.trabajador_cargo,
-      'Monto Bruto': t.sueldo_base_contabilidad,
-      'Desc. Boleta (15.25%)': t.descuento_boleta,
-      'Total Líquido': t.total_liquido,
-    }))
-    filasBoleta.push({
-      'Nombre': 'TOTAL',
-      'RUT': '',
-      'Cargo': '',
-      'Monto Bruto': data.boleta.reduce((a, t: any) => a + t.sueldo_base_contabilidad, 0),
-      'Desc. Boleta (15.25%)': data.boleta.reduce((a, t: any) => a + t.descuento_boleta, 0),
-      'Total Líquido': data.total_boleta,
-    })
-
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filasContrato), 'Contratos')
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filasBoleta), 'Boletas')
-    XLSX.writeFile(wb, `Remuneraciones_${nombreMes}_${anio}.xlsx`)
+  // ─── ESTILOS ───────────────────────────────────────────────
+  const sEmpresa = { font: { bold: true, sz: 13, color: { rgb: '1e3a5f' } } }
+  const sRut     = { font: { sz: 11, color: { rgb: '444444' } } }
+  const sFecha   = { font: { italic: true, sz: 10, color: { rgb: '888888' } } }
+  const sTitulo  = (rgb: string) => ({
+    font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb } },
+    alignment: { horizontal: 'center' },
+    border: {
+      top:    { style: 'thin', color: { rgb: 'CCCCCC' } },
+      bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+      left:   { style: 'thin', color: { rgb: 'CCCCCC' } },
+      right:  { style: 'thin', color: { rgb: 'CCCCCC' } },
+    }
+  })
+  const sCargo = (rgb: string) => ({
+    font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb } },
+    alignment: { horizontal: 'left' },
+  })
+  const sDato = {
+    font: { sz: 10 },
+    border: {
+      top:    { style: 'thin', color: { rgb: 'EEEEEE' } },
+      bottom: { style: 'thin', color: { rgb: 'EEEEEE' } },
+      left:   { style: 'thin', color: { rgb: 'EEEEEE' } },
+      right:  { style: 'thin', color: { rgb: 'EEEEEE' } },
+    }
   }
+  const sMonto = {
+    ...sDato,
+    font: { sz: 10 },
+    numFmt: '"$"#,##0',
+    alignment: { horizontal: 'right' },
+  }
+  const sMontoRojo = { ...sMonto, font: { sz: 10, color: { rgb: 'dc2626' } } }
+  const sMontoVerde = { ...sMonto, font: { sz: 10, bold: true, color: { rgb: '059669' } } }
+  const sSubtotal = (rgb: string) => ({
+    font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb } },
+    numFmt: '"$"#,##0',
+    alignment: { horizontal: 'right' },
+  })
+  const sTotal = (rgb: string) => ({
+    font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb } },
+    numFmt: '"$"#,##0',
+    alignment: { horizontal: 'right' },
+  })
+  const sLicencia = {
+    font: { bold: true, sz: 10, color: { rgb: 'c2410c' } },
+    fill: { fgColor: { rgb: 'fff7ed' } },
+    alignment: { horizontal: 'center' },
+  }
+
+  // ─── HELPER: celda ────────────────────────────────────────
+  const c = (v: any, s: any = {}) => ({ v, s })
+  const empty = () => c('', {})
+
+  // ─── HOJA CONTRATOS ───────────────────────────────────────
+  const COLOR_CONTRATO = '1e3a5f'
+  const COLOR_CONTRATO_LIGHT = '2563eb'
+  const COLS_C = ['Nombre', 'RUT', 'Cargo', 'Sueldo Base', 'Bono Producción', 'Anticipos', 'Total Líquido']
+
+  const rowsC: any[][] = []
+
+  // Cabecera empresa
+  rowsC.push([c('Muebles Jerk SPA', sEmpresa), ...Array(6).fill(empty())])
+  rowsC.push([c('76.990.942-7', sRut), ...Array(6).fill(empty())])
+  rowsC.push([c(`Remuneraciones ${nombreMes} ${anio} — Contratos`, sEmpresa), ...Array(6).fill(empty())])
+  rowsC.push([c(`Generado: ${fechaHoy}`, sFecha), ...Array(6).fill(empty())])
+  rowsC.push(Array(7).fill(empty()))
+
+  // Títulos columnas
+  rowsC.push(COLS_C.map(h => c(h, sTitulo(COLOR_CONTRATO))))
+
+  // Agrupar por cargo
+  const cargoColores: Record<string, string> = {
+    costura:      '7c3aed',
+    tapiceria:    'b45309',
+    esqueleteria: '0e7490',
+    bodega:       '374151',
+    cojineria:    'be185d',
+    embalaje:     '166534',
+    oficina:      '1e40af',
+    corte:        '9a3412',
+  }
+
+  const cargoGroups: Record<string, typeof data.contrato> = {}
+  data.contrato.forEach(t => {
+    const cargo = t.trabajador_cargo || 'otro'
+    if (!cargoGroups[cargo]) cargoGroups[cargo] = []
+    cargoGroups[cargo].push(t)
+  })
+
+  let totalGeneral = 0
+  let totalBaseGeneral = 0
+  let totalBonoGeneral = 0
+  let totalAnticiposGeneral = 0
+
+  Object.entries(cargoGroups).forEach(([cargo, trabajadores]) => {
+    const colorCargo = cargoColores[cargo] || '374151'
+
+    // Fila cargo
+    rowsC.push([
+      c(cargo.toUpperCase(), sCargo(colorCargo)),
+      ...Array(6).fill(c('', { fill: { fgColor: { rgb: colorCargo } } }))
+    ])
+
+    let subBase = 0, subBono = 0, subAnt = 0, subTotal = 0
+
+    trabajadores.forEach(t => {
+      subBase += t.sueldo_base_contabilidad
+      subBono += t.bono_produccion
+      subAnt  += t.total_anticipos
+      subTotal += t.total_liquido
+
+      rowsC.push([
+        c(t.trabajador_nombre, sDato),
+        c(t.trabajador_rut, sDato),
+        c(t.trabajador_cargo, sDato),
+        c(t.sueldo_base_contabilidad, sMonto),
+        t.licencia ? c('LICENCIA', sLicencia) : c(t.bono_produccion > 0 ? t.bono_produccion : 0, sMonto),
+        c(t.total_anticipos > 0 ? t.total_anticipos : 0, t.total_anticipos > 0 ? sMontoRojo : sDato),
+        c(t.total_liquido, sMontoVerde),
+      ])
+    })
+
+    // Subtotal cargo
+    rowsC.push([
+      c(`Subtotal ${cargo}`, { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: colorCargo } } }),
+      empty(), empty(),
+      c(subBase, sSubtotal(colorCargo)),
+      c(subBono, sSubtotal(colorCargo)),
+      c(subAnt, sSubtotal(colorCargo)),
+      c(subTotal, sSubtotal(colorCargo)),
+    ])
+    rowsC.push(Array(7).fill(empty()))
+
+    totalBaseGeneral += subBase
+    totalBonoGeneral += subBono
+    totalAnticiposGeneral += subAnt
+    totalGeneral += subTotal
+  })
+
+  // Total general
+  rowsC.push([
+    c('TOTAL CONTRATOS', { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: COLOR_CONTRATO } } }),
+    empty(), empty(),
+    c(totalBaseGeneral, sTotal(COLOR_CONTRATO)),
+    c(totalBonoGeneral, sTotal(COLOR_CONTRATO)),
+    c(totalAnticiposGeneral, sTotal(COLOR_CONTRATO)),
+    c(totalGeneral, sTotal(COLOR_CONTRATO)),
+  ])
+
+  const wsC = XLSX.utils.aoa_to_sheet(rowsC)
+  wsC['!cols'] = [{ wch: 32 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 14 }]
+  wsC['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 6 } },
+  ]
+  XLSX.utils.book_append_sheet(wb, wsC, `Contratos ${nombreMes}`)
+
+  // ─── HOJA BOLETAS ─────────────────────────────────────────
+  const COLOR_BOLETA = '4c1d95'
+  const COLS_B = ['Nombre', 'RUT', 'Cargo', 'Monto Bruto', 'Desc. Boleta (15.25%)', 'Total Líquido']
+
+  const rowsB: any[][] = []
+  rowsB.push([c('Muebles Jerk SPA', sEmpresa), ...Array(5).fill(empty())])
+  rowsB.push([c('76.990.942-7', sRut), ...Array(5).fill(empty())])
+  rowsB.push([c(`Remuneraciones ${nombreMes} ${anio} — Boletas`, sEmpresa), ...Array(5).fill(empty())])
+  rowsB.push([c(`Generado: ${fechaHoy}`, sFecha), ...Array(5).fill(empty())])
+  rowsB.push(Array(6).fill(empty()))
+  rowsB.push(COLS_B.map(h => c(h, sTitulo(COLOR_BOLETA))))
+
+  let totalBruto = 0, totalDesc = 0, totalLiqBoleta = 0
+
+  ;(data.boleta as any[]).forEach(t => {
+    totalBruto   += t.sueldo_base_contabilidad
+    totalDesc    += t.descuento_boleta
+    totalLiqBoleta += t.total_liquido
+
+    rowsB.push([
+      c(t.trabajador_nombre, sDato),
+      c(t.trabajador_rut, sDato),
+      c(t.trabajador_cargo, sDato),
+      c(t.sueldo_base_contabilidad, sMonto),
+      c(t.descuento_boleta, sMontoRojo),
+      c(t.total_liquido, sMontoVerde),
+    ])
+  })
+
+  rowsB.push(Array(6).fill(empty()))
+  rowsB.push([
+    c('TOTAL BOLETAS', { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: COLOR_BOLETA } } }),
+    empty(), empty(),
+    c(totalBruto, sTotal(COLOR_BOLETA)),
+    c(totalDesc, sTotal(COLOR_BOLETA)),
+    c(totalLiqBoleta, sTotal(COLOR_BOLETA)),
+  ])
+
+  const wsB = XLSX.utils.aoa_to_sheet(rowsB)
+  wsB['!cols'] = [{ wch: 32 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 14 }]
+  wsB['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 5 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 5 } },
+  ]
+  XLSX.utils.book_append_sheet(wb, wsB, `Boletas ${nombreMes}`)
+
+  XLSX.writeFile(wb, `Remuneraciones_${nombreMes}_${anio}.xlsx`)
+}
 
   const TH: React.CSSProperties = {
     padding: '10px 14px', textAlign: 'left', fontSize: '11px',
