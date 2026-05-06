@@ -33,6 +33,7 @@ interface Trabajador {
   sueldo_base_contabilidad: number
   bono_produccion: number
   total_liquido: number
+  licencia?: boolean
 }
 
 interface Resumen {
@@ -98,12 +99,13 @@ export default function ContadorResumen({ mes, anio }: Props) {
             - t.total_anticipos
             )
 
-          return {
+            return {
             ...t,
             sueldo_base_contabilidad,
             bono_produccion,
             total_liquido,
-          }
+            licencia: t.es_produccion && t.sueldo_base === 0,
+            }
         })
 
       // BOLETAS
@@ -324,8 +326,16 @@ export default function ContadorResumen({ mes, anio }: Props) {
                     <td style={{ ...TD, textAlign: 'right', fontWeight: 500 }}>
                       {fmt(t.sueldo_base_contabilidad)}
                     </td>
-                    <td style={{ ...TD, textAlign: 'right', color: t.bono_produccion > 0 ? '#059669' : '#9ca3af' }}>
-                      {t.bono_produccion > 0 ? fmt(t.bono_produccion) : '—'}
+                    <td style={{ ...TD, textAlign: 'right', color: t.bono_produccion > 0 ? '#059669' : '#e97316' }}>
+                    {t.licencia ? (
+                        <span style={{
+                        fontSize: '11px', padding: '2px 10px', borderRadius: '20px',
+                        background: '#fff7ed', color: '#c2410c', fontWeight: 700,
+                        border: '1px solid #fed7aa',
+                        }}>
+                        LICENCIA
+                        </span>
+                    ) : t.bono_produccion > 0 ? fmt(t.bono_produccion) : '—'}
                     </td>
                     <td style={{ ...TD, textAlign: 'right', color: t.total_anticipos > 0 ? '#dc2626' : '#9ca3af' }}>
                       {t.total_anticipos > 0 ? `-${fmt(t.total_anticipos)}` : '—'}
