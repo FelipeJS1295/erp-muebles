@@ -42,9 +42,26 @@ export default function WorkerSueldo({ trabajadorId }: Props) {
     setData(null)
     try {
     const res = await api.get(`/resumen-mensual`, {
-      params: { mes, anio, trabajador_id: trabajadorId }
+      params: { mes, anio }
     })
-      setData(res.data)
+    const trabajador = res.data.resumen?.find(
+      (t: any) => t.trabajador_id === trabajadorId
+    )
+    if (!trabajador) { setError('Sin datos para este período'); setLoading(false); return }
+    setData({
+      trabajador_id: trabajador.trabajador_id,
+      trabajador_nombre: trabajador.trabajador_nombre,
+      sueldo_base: trabajador.sueldo_base,
+      horas_extras: { total_horas: trabajador.horas_extras_qty, monto_total: trabajador.total_horas_extras },
+      dias_extras: { total_dias: trabajador.dias_extras_qty, monto_total: trabajador.total_dias_extras },
+      bonos: { monto_total: trabajador.total_bonos },
+      dias_faltantes: { total_dias: trabajador.dias_faltantes_qty, monto_total: trabajador.total_descuentos },
+      otros_descuentos: { monto_total: trabajador.total_otros_descuentos },
+      anticipos: { monto_total: 0 },
+      total_haberes: trabajador.sueldo_base + trabajador.total_horas_extras + trabajador.total_dias_extras + trabajador.total_bonos,
+      total_descuentos: trabajador.total_descuentos + trabajador.total_otros_descuentos,
+      liquido: trabajador.total,
+    })
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'No se pudo cargar el resumen')
     } finally {
