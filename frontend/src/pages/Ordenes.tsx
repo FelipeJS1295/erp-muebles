@@ -280,6 +280,61 @@ export default function Ordenes() {
   }
 }
 
+  const exportarExcel = () => {
+    const ordenesAExportar = filtradas.filter(o => selected.has(o.orden_id))
+
+    const rows = ordenesAExportar.flatMap(o => {
+      const items = o.items || []
+      const estadoUnificado = getEstadoUnificado(o)
+      if (items.length === 0) {
+        return [{
+          Marketplace: o.marketplace,
+          'N° Orden': o.orden_id,
+          Cliente: o.cliente || '',
+          Producto: '',
+          SKU: '',
+          Cantidad: '',
+          'Precio Unit.': '',
+          'Total Orden': o.total ?? '',
+          'Fecha Despacho': o.fecha_despacho || '',
+          Estado: estadoUnificado,
+          Carrier: o.carrier || '',
+          Boleta: o.boleta_folio ? `Folio ${o.boleta_folio}` : '',
+        }]
+      }
+      return items.map((item: any, idx: number) => ({
+        Marketplace: idx === 0 ? o.marketplace : '',
+        'N° Orden': idx === 0 ? o.orden_id : '',
+        Cliente: idx === 0 ? (o.cliente || '') : '',
+        Producto: item.nombre || item.name || item.Name || '',
+        SKU: item.sku || item.Sku || item.sellerSku || '',
+        Cantidad: item.cantidad || item.Quantity || 1,
+        'Precio Unit.': item.precio || item.priceAfterDiscounts || item.basePrice || item.ItemPrice || '',
+        'Total Orden': idx === 0 ? (o.total ?? '') : '',
+        'Fecha Despacho': idx === 0 ? (o.fecha_despacho || '') : '',
+        Estado: idx === 0 ? estadoUnificado : '',
+        Carrier: idx === 0 ? (o.carrier || '') : '',
+        Boleta: idx === 0 ? (o.boleta_folio ? `Folio ${o.boleta_folio}` : '') : '',
+      }))
+    })
+
+    // Construir CSV
+    const cols = ['Marketplace', 'N° Orden', 'Cliente', 'Producto', 'SKU', 'Cantidad', 'Precio Unit.', 'Total Orden', 'Fecha Despacho', 'Estado', 'Carrier', 'Boleta']
+    const escape = (v: any) => {
+      const s = String(v ?? '')
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const csv = [cols.join(','), ...rows.map(r => cols.map(c => escape((r as any)[c])).join(','))].join('\n')
+    const bom = '\uFEFF'
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ordenes_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
   <div style={{ animation: 'fadeIn 0.2s ease' }}>
     {ordenSeleccionada && <OrdenModal orden={ordenSeleccionada} onClose={() => setOrdenSeleccionada(null)} />}
@@ -306,10 +361,15 @@ export default function Ordenes() {
           <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '2px' }}>Gestión de órdenes de todos los marketplaces</div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 1h9v2L6 7v3l-2-1V7L1 3V1z"/></svg>
-            Exportar
-          </button>
+        <button
+          onClick={exportarExcel}
+          disabled={selected.size === 0}
+          title={selected.size === 0 ? 'Selecciona órdenes para exportar' : `Exportar ${selected.size} orden${selected.size > 1 ? 'es' : ''}`}
+          style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px', opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 1h9v2L6 7v3l-2-1V7L1 3V1z"/></svg>
+          {selected.size > 0 ? `Exportar (${selected.size})` : 'Exportar'}
+        </button>
           <button onClick={sincronizar} disabled={syncing} style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px', opacity: syncing ? 0.6 : 1 }}>
             <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.3"
               style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}>
