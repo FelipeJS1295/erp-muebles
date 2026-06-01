@@ -38,13 +38,17 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
 
   const items = orden.items || []
 
+  const esWalmart = orden.marketplace === 'walmart_chile'
+
   const totalItems = items.reduce((sum: number, item: any) => {
-    const precio = Number(item.precio || item.priceAfterDiscounts || item.basePrice || item.ItemPrice || 0)
+    const precioRaw = Number(item.precio || item.priceAfterDiscounts || item.basePrice || item.ItemPrice || 0)
+    const precio = esWalmart ? Math.round(precioRaw * 1.19) : precioRaw
     const cantidad = Number(item.cantidad || item.Quantity || 1)
     return sum + (precio * cantidad)
   }, 0)
 
-  const costoDespacho = ordenData?.costo_despacho || 0
+  const costoDespachoRaw = ordenData?.costo_despacho || 0
+  const costoDespacho = esWalmart ? Math.round(costoDespachoRaw * 1.19) : costoDespachoRaw
   const total = ordenData?.total || (totalItems + costoDespacho) || orden.total || 0
   const monto_neto = total > 0 ? Math.round(total / 1.19) : 0
   const iva = total > 0 ? total - monto_neto : 0

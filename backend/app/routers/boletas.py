@@ -77,24 +77,41 @@ async def emitir_boleta_orden(orden_id: int, db: AsyncSession = Depends(get_db))
         # Armar productos desde los items
         items = orden.items or []
         productos = []
+        es_walmart = str(orden.marketplace.value if hasattr(orden.marketplace, 'value') else orden.marketplace) == "walmart_chile"
+
         for item in items:
             nombre = item.get("nombre") or item.get("name") or item.get("Name") or "Producto"
             cantidad = int(item.get("cantidad") or item.get("Quantity") or 1)
-            precio = int(float(
-                item.get("precio") or
-                item.get("priceAfterDiscounts") or
-                item.get("basePrice") or
-                item.get("ItemPrice") or 0
-            ))
-            if precio > 0:
-                productos.append({"nombre": nombre, "cantidad": cantidad, "valor": precio})
+
+            if es_walmart:
+                # En Walmart, el precio guardado es sin IVA (neto)
+                # Nubox espera el valor con IVA incluido
+                precio_neto = float(
+                    item.get("precio") or
+                    item.get("basePrice") or 0
+                )
+                precio_con_iva = round(precio_neto * 1.19)
+            else:
+                precio_con_iva = int(float(
+                    item.get("precio") or
+                    item.get("priceAfterDiscounts") or
+                    item.get("basePrice") or
+                    item.get("ItemPrice") or 0
+                ))
+
+            if precio_con_iva > 0:
+                productos.append({"nombre": nombre, "cantidad": cantidad, "valor": precio_con_iva})
 
         # Agregar costo despacho como producto si existe
         if sod and sod.costo_despacho and sod.costo_despacho > 0:
+            costo_despacho = int(sod.costo_despacho)
+            if es_walmart:
+                # El costo de despacho de Walmart también viene sin IVA
+                costo_despacho = round(costo_despacho * 1.19)
             productos.append({
                 "nombre": "Costo de despacho",
                 "cantidad": 1,
-                "valor": int(sod.costo_despacho)
+                "valor": costo_despacho
             })
 
         if not productos:
