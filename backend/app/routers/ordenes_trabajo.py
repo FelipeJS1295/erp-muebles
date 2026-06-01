@@ -163,6 +163,59 @@ async def actualizar_estado_ot(id: int, data: dict, db: AsyncSession = Depends(g
         return {"mensaje": "Estado actualizado", "id": id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+
+@router.put("/{id}")
+async def editar_ot(id: int, data: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(OrdenTrabajo).where(OrdenTrabajo.id == id))
+        ot = result.scalar_one_or_none()
+        if not ot:
+            raise HTTPException(status_code=404, detail="OT no encontrada")
+
+        # Campos comunes
+        if "numero_ot" in data:
+            ot.numero_ot = data["numero_ot"]
+        if "fecha" in data:
+            ot.fecha = parse_fecha(data["fecha"])
+        if "descripcion" in data:
+            ot.descripcion = data["descripcion"]
+        if "estado" in data:
+            ot.estado = data["estado"]
+
+        # Solo para producción
+        if "trabajador_id" in data:
+            trabajador = await db.get(Trabajador, data["trabajador_id"])
+            if not trabajador:
+                raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+            ot.trabajador_id = trabajador.id
+            ot.cargo_trabajador = trabajador.cargo
+
+        if "producto_interno_id" in data:
+            producto = await db.get(ProductoInterno, data["producto_interno_id"])
+            if not producto:
+                raise HTTPException(status_code=404, detail="Producto no encontrado")
+            ot.producto_interno_id = producto.id
+            cargo = ot.cargo_trabajador
+            unidades = int(data.get("unidades", ot.unidades or 1))
+            ot.unidades = unidades
+            if cargo == 'costura':
+                ot.precio_aplicado = producto.precio_costura
+            elif cargo == 'tapiceria':
+                ot.precio_aplicado = producto.precio_tapiceria
+            elif cargo == 'esqueleteria':
+                ot.precio_aplicado = producto.precio_esqueleteria * unidades
+
+        # Solo para reparaciones
+        if "precio" in data:
+            ot.precio_aplicado = float(data["precio"])
+
+        await db.commit()
+        return {"mensaje": "OT actualizada", "id": id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 @router.delete("/{id}")

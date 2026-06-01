@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { api } from '../api/client'
+import EditarOTModal from '../components/components_ot/EditarOTModal'
+import EditarReparacionModal from '../components/components_ot/EditarReparacionModal'
 
 
 interface Trabajador {
@@ -58,15 +60,15 @@ interface OrdenTrabajo {
 }
 
 const cargoColor: Record<string, { bg: string; color: string }> = {
-  costura:      { bg: 'var(--success-bg)', color: 'var(--success)' },
-  tapiceria:    { bg: 'var(--warning-bg)', color: 'var(--warning)' },
-  esqueleteria: { bg: 'var(--info-bg)',    color: 'var(--info)' },
+  costura: { bg: 'var(--success-bg)', color: 'var(--success)' },
+  tapiceria: { bg: 'var(--warning-bg)', color: 'var(--warning)' },
+  esqueleteria: { bg: 'var(--info-bg)', color: 'var(--info)' },
 }
 
 const estadoColor: Record<string, { bg: string; color: string }> = {
-  pendiente:  { bg: 'var(--warning-bg)', color: 'var(--warning)' },
+  pendiente: { bg: 'var(--warning-bg)', color: 'var(--warning)' },
   completada: { bg: 'var(--success-bg)', color: 'var(--success)' },
-  cancelada:  { bg: 'var(--danger-bg)',  color: 'var(--danger)' },
+  cancelada: { bg: 'var(--danger-bg)', color: 'var(--danger)' },
 }
 
 const emptyLinea = (): LineaOT => ({
@@ -954,7 +956,7 @@ export default function OrdenesTrabajo() {
   const usuarioGuardado = localStorage.getItem('usuario')
   const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
   const soloLectura = usuario?.rol === 'view'
-  
+
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
   const [loading, setLoading] = useState(true)
   const [mostrarIngreso, setMostrarIngreso] = useState(false)
@@ -966,6 +968,7 @@ export default function OrdenesTrabajo() {
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
   const [mostrarResumen, setMostrarResumen] = useState(false)
+  const [ordenEditar, setOrdenEditar] = useState<OrdenTrabajo | null>(null)
 
   const cargar = async () => {
     try {
@@ -1020,6 +1023,12 @@ export default function OrdenesTrabajo() {
       {mostrarIngreso && <IngresoOTModal onClose={() => setMostrarIngreso(false)} onSave={cargar} />}
       {mostrarReparacion && <ReparacionModal onClose={() => setMostrarReparacion(false)} onSave={cargar} />}
       {mostrarResumen && <ResumenModal onClose={() => setMostrarResumen(false)} />}
+      {ordenEditar && ordenEditar.tipo !== 'reparacion' && (
+        <EditarOTModal orden={ordenEditar} onClose={() => setOrdenEditar(null)} onSave={cargar} />
+      )}
+      {ordenEditar && ordenEditar.tipo === 'reparacion' && (
+        <EditarReparacionModal orden={ordenEditar} onClose={() => setOrdenEditar(null)} onSave={cargar} />
+      )}
 
       {/* Topbar */}
       <div style={{
@@ -1039,7 +1048,7 @@ export default function OrdenesTrabajo() {
             <div style={{ position: 'relative' }}>
               <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="var(--text-3)" strokeWidth="1.3"
                 style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }}>
-                <circle cx="5" cy="5" r="4"/><path d="M9 9l2 2"/>
+                <circle cx="5" cy="5" r="4" /><path d="M9 9l2 2" />
               </svg>
               <input placeholder="Buscar OT, trabajador, SKU..." value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
@@ -1073,32 +1082,32 @@ export default function OrdenesTrabajo() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-            {!soloLectura && (
-                <button onClick={() => setMostrarReparacion(true)} style={{
-                padding: '8px 14px', borderRadius: '8px', border: '0.5px solid #e85d04',
-                background: 'transparent', color: '#e85d04',
-                fontSize: '12px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
-                }}>
-                🔧 Reparación
-                </button>
-            )}
-            {!soloLectura && (
-                <button onClick={() => setMostrarIngreso(true)} style={{
-                ...IS, display: 'flex', alignItems: 'center', gap: '6px',
-                background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
-                fontWeight: 500, whiteSpace: 'nowrap',
-                }}>
-                + Ingresar OT
-                </button>
-            )}
-            <button onClick={() => setMostrarResumen(true)} style={{
-                padding: '8px 14px', borderRadius: '8px',
-                border: '0.5px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text-2)', fontSize: '12px', fontWeight: 500,
-                cursor: 'pointer', whiteSpace: 'nowrap',
+          {!soloLectura && (
+            <button onClick={() => setMostrarReparacion(true)} style={{
+              padding: '8px 14px', borderRadius: '8px', border: '0.5px solid #e85d04',
+              background: 'transparent', color: '#e85d04',
+              fontSize: '12px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
             }}>
-                🖨️ Resumen
+              🔧 Reparación
             </button>
+          )}
+          {!soloLectura && (
+            <button onClick={() => setMostrarIngreso(true)} style={{
+              ...IS, display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
+              fontWeight: 500, whiteSpace: 'nowrap',
+            }}>
+              + Ingresar OT
+            </button>
+          )}
+          <button onClick={() => setMostrarResumen(true)} style={{
+            padding: '8px 14px', borderRadius: '8px',
+            border: '0.5px solid var(--border)', background: 'var(--bg)',
+            color: 'var(--text-2)', fontSize: '12px', fontWeight: 500,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>
+            🖨️ Resumen
+          </button>
         </div>
       </div>
 
@@ -1151,12 +1160,12 @@ export default function OrdenesTrabajo() {
                 )) : filtradas.length === 0 ? (
                   <tr><td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: '13px' }}>
                     No hay órdenes de trabajo.{' '}
-                  {!soloLectura && (
-                    <button onClick={() => setMostrarIngreso(true)}
-                      style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '13px' }}>
-                      Ingresar la primera
-                    </button>
-                  )}
+                    {!soloLectura && (
+                      <button onClick={() => setMostrarIngreso(true)}
+                        style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '13px' }}>
+                        Ingresar la primera
+                      </button>
+                    )}
                   </td></tr>
                 ) : filtradas.map((o, i) => {
                   const col = cargoColor[o.cargo_trabajador] || { bg: 'var(--bg-3)', color: 'var(--text-3)' }
@@ -1206,18 +1215,23 @@ export default function OrdenesTrabajo() {
                           {o.estado}
                         </span>
                       </td>
-                        <td style={TD}>
+                      <td style={TD}>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                            {!soloLectura && o.estado === 'pendiente' && (
+                          {!soloLectura && o.estado === 'pendiente' && (
                             <button onClick={async () => {
-                                await api.put(`/ordenes-trabajo/${o.id}/estado`, { estado: 'completada' })
-                                cargar()
+                              await api.put(`/ordenes-trabajo/${o.id}/estado`, { estado: 'completada' })
+                              cargar()
                             }} style={{
-                                fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
-                                border: 'none', background: 'var(--success)', color: '#fff', cursor: 'pointer',
+                              fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
+                              border: 'none', background: 'var(--success)', color: '#fff', cursor: 'pointer',
                             }}>✓</button>
-                            )}
-                            {!soloLectura && (
+                          )}
+                          {!soloLectura && (
+                            <button onClick={() => setOrdenEditar(o)} style={{
+                                fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
+                                border: '0.5px solid var(--border)', background: 'var(--bg)',
+                                color: 'var(--text-2)', cursor: 'pointer',
+                            }}>✏️</button>
                             <button onClick={async () => {
                                 if (!confirm(`¿Eliminar OT ${o.numero_ot}?`)) return
                                 await api.delete(`/ordenes-trabajo/${o.id}`)
@@ -1227,10 +1241,10 @@ export default function OrdenesTrabajo() {
                                 border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
                                 color: 'var(--danger)', cursor: 'pointer',
                             }}>✕</button>
-                            )}
-                            {soloLectura && <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>—</span>}
+                          )}
+                          {soloLectura && <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>—</span>}
                         </div>
-                        </td>
+                      </td>
                     </tr>
                   )
                 })}
