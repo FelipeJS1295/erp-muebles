@@ -21,6 +21,18 @@ const getHoy = () => {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
+function ajustarFechaDespacho(fechaStr: string, marketplace: string): string {
+  const [y, m, d] = fechaStr.split('-').map(Number)
+  const fecha = new Date(y, m - 1, d)
+  const diasRestar = marketplace === 'falabella' ? 2 : 1
+  fecha.setDate(fecha.getDate() - diasRestar)
+  if (fecha.getDay() === 0) fecha.setDate(fecha.getDate() - 2)
+  const yy = fecha.getFullYear()
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dd = String(fecha.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 function getEstadoUnificado(orden: any): string {
   if (orden.fulfillment === 'by-paris') return 'Despachada'
   const hoy = getHoy()
@@ -75,7 +87,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
 
   const fechas = useMemo(() => {
     const set = new Set<string>()
-    ordenesFiltradas.forEach(o => { if (o.fecha_despacho) set.add(o.fecha_despacho) })
+     ordenesFiltradas.forEach(o => { if (o.fecha_despacho) set.add(ajustarFechaDespacho(o.fecha_despacho, o.marketplace)) })
     return Array.from(set).sort()
   }, [ordenesFiltradas])
 
@@ -90,7 +102,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
       const producto = primer?.nombre || primer?.name || primer?.Name || '—'
       const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
       const key = `${o.marketplace === 'falabella' ? `${producto} (JAMAROFF)` : producto}|||${sku}`
-      const fecha = o.fecha_despacho || 'Sin fecha'
+      const fecha = o.fecha_despacho ? ajustarFechaDespacho(o.fecha_despacho, o.marketplace) : 'Sin fecha'
       if (!grupos[mkt]) grupos[mkt] = {}
       if (!grupos[mkt][key]) grupos[mkt][key] = {}
       grupos[mkt][key][fecha] = (grupos[mkt][key][fecha] || 0) + 1
