@@ -53,14 +53,17 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
   const monto_neto = total > 0 ? Math.round(total / 1.19) : 0
   const iva = total > 0 ? total - monto_neto : 0
 
+  const esFactura = ordenData?.tipo_documento === 'factura'
+
   const emitir = async () => {
     try {
       setEmitiendo(true); setError('')
-      const res = await api.post(`/boletas/emitir/${orden.id}`)
+      const endpoint = esFactura ? `/boletas/emitir-factura/${orden.id}` : `/boletas/emitir/${orden.id}`
+      const res = await api.post(endpoint)
       setResultado(res.data)
       onEmitida()
     } catch (e: any) {
-      setError(e.response?.data?.detail || 'Error al emitir boleta')
+      setError(e.response?.data?.detail || 'Error al emitir documento')
     } finally { setEmitiendo(false) }
   }
 
@@ -82,7 +85,9 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
           position: 'sticky', top: 0, background: 'var(--bg-2)', zIndex: 1,
         }}>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>
-            {resultado ? '✅ Boleta emitida' : 'Emitir Boleta Electrónica'}
+            {resultado
+              ? (esFactura ? '✅ Factura emitida' : '✅ Boleta emitida')
+              : (esFactura ? 'Emitir Factura Electrónica' : 'Emitir Boleta Electrónica')}
           </div>
           <button onClick={onClose} style={{
             background: 'var(--bg-3)', border: 'none', borderRadius: '6px',
@@ -216,7 +221,9 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
               </div>
 
               <div style={{ fontSize: '12px', color: 'var(--text-3)', padding: '8px', background: 'var(--warning-bg)', borderRadius: '6px' }}>
-                ⚠️ Esta boleta se emitirá ante el SII y quedará registrada en Nubox. Esta acción no se puede deshacer.
+                 {esFactura
+                  ? '⚠️ Esta factura se emitirá ante el SII y quedará registrada en Nubox. Esta acción no se puede deshacer.'
+                  : '⚠️ Esta boleta se emitirá ante el SII y quedará registrada en Nubox. Esta acción no se puede deshacer.'}
               </div>
             </div>
 
@@ -237,7 +244,7 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
                 fontSize: '13px', fontWeight: 500, cursor: 'pointer',
                 opacity: emitiendo ? 0.6 : 1,
               }}>
-                {emitiendo ? 'Emitiendo...' : '📄 Emitir boleta'}
+                {emitiendo ? 'Emitiendo...' : (esFactura ? 'Emitir Factura' : 'Emitir Boleta')}
               </button>
             </div>
           </> : <>

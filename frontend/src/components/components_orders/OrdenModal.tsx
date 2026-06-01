@@ -258,12 +258,19 @@ export default function OrdenModal({ orden, onClose }: Props) {
                 color: 'var(--info)', fontSize: '13px', cursor: 'pointer',
               }}>📄 Ver etiqueta PDF</button>
             )}
-            {orden.boleta_folio && (
+            {orden.boleta_folio && orden.tipo_documento !== 'factura' && (
               <button onClick={() => window.open(`/api/v1/boletas/${orden.id}/pdf-view`, '_blank')} style={{
                 flex: 1, padding: '11px', borderRadius: '8px',
                 border: '0.5px solid var(--success)', background: 'var(--success-bg)',
                 color: 'var(--success)', fontSize: '13px', cursor: 'pointer',
               }}>📄 Ver boleta</button>
+            )}
+            {orden.boleta_folio && orden.tipo_documento === 'factura' && (
+              <button onClick={() => window.open(`/api/v1/boletas/${orden.id}/factura-pdf-view`, '_blank')} style={{
+                flex: 1, padding: '11px', borderRadius: '8px',
+                border: '0.5px solid var(--warning)', background: 'var(--warning-bg)',
+                color: 'var(--warning)', fontSize: '13px', cursor: 'pointer',
+              }}>🧾 Ver factura</button>
             )}
             <button onClick={onClose} style={{
               padding: '11px 16px', borderRadius: '8px',
