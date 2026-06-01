@@ -2,6 +2,9 @@ import { useEffect, useState, useMemo } from 'react'
 import { api } from '../api/client'
 import EditarOTModal from '../components/components_ot/EditarOTModal'
 import EditarReparacionModal from '../components/components_ot/EditarReparacionModal'
+import EditarFechaLoteModal from '../components/components_ot/EditarFechaLoteModal'
+import EditarTrabajadorLoteModal from '../components/components_ot/EditarTrabajadorLoteModal'
+import EditarProductoLoteModal from '../components/components_ot/EditarProductoLoteModal'
 
 
 interface Trabajador {
@@ -969,6 +972,9 @@ export default function OrdenesTrabajo() {
   const [filtroHasta, setFiltroHasta] = useState('')
   const [mostrarResumen, setMostrarResumen] = useState(false)
   const [ordenEditar, setOrdenEditar] = useState<OrdenTrabajo | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [menuLote, setMenuLote] = useState(false)
+  const [modalLote, setModalLote] = useState<'fecha' | 'trabajador' | 'producto' | null>(null)
 
   const cargar = async () => {
     try {
@@ -1028,6 +1034,15 @@ export default function OrdenesTrabajo() {
       )}
       {ordenEditar && ordenEditar.tipo === 'reparacion' && (
         <EditarReparacionModal orden={ordenEditar} onClose={() => setOrdenEditar(null)} onSave={cargar} />
+      )}
+      {modalLote === 'fecha' && (
+        <EditarFechaLoteModal ids={Array.from(selected)} onClose={() => setModalLote(null)} onSave={() => { cargar(); setSelected(new Set()) }} />
+      )}
+      {modalLote === 'trabajador' && (
+        <EditarTrabajadorLoteModal ids={Array.from(selected)} onClose={() => setModalLote(null)} onSave={() => { cargar(); setSelected(new Set()) }} />
+      )}
+      {modalLote === 'producto' && (
+        <EditarProductoLoteModal ids={Array.from(selected)} onClose={() => setModalLote(null)} onSave={() => { cargar(); setSelected(new Set()) }} />
       )}
 
       {/* Topbar */}
@@ -1100,6 +1115,55 @@ export default function OrdenesTrabajo() {
               + Ingresar OT
             </button>
           )}
+          {selected.size > 0 && (
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setMenuLote(v => !v)} style={{
+                padding: '8px 14px', borderRadius: '8px',
+                border: '0.5px solid var(--accent)', background: 'var(--accent)',
+                color: 'var(--accent-fg)', fontSize: '12px', fontWeight: 500,
+                cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px',
+              }}>
+                ✏️ Editar ({selected.size}) ▾
+              </button>
+              {menuLote && (
+                <div onClick={() => setMenuLote(false)} style={{
+                  position: 'fixed', inset: 0, zIndex: 998,
+                }} />
+              )}
+              {menuLote && (
+                <div style={{
+                  position: 'absolute', top: '110%', right: 0, zIndex: 999,
+                  background: 'var(--bg-2)', border: '0.5px solid var(--border)',
+                  borderRadius: '8px', overflow: 'hidden', minWidth: '180px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                }}>
+                  {[
+                    { label: '📅 Editar fecha', value: 'fecha' },
+                    { label: '👤 Editar trabajador', value: 'trabajador' },
+                    { label: '📦 Editar producto', value: 'producto' },
+                  ].map(op => (
+                    <button key={op.value} onClick={() => { setModalLote(op.value as any); setMenuLote(false) }} style={{
+                      display: 'block', width: '100%', padding: '10px 16px',
+                      background: 'transparent', border: 'none', textAlign: 'left',
+                      fontSize: '13px', color: 'var(--text-1)', cursor: 'pointer',
+                      borderBottom: '0.5px solid var(--border)',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >{op.label}</button>
+                  ))}
+                  <button onClick={() => { setSelected(new Set()); setMenuLote(false) }} style={{
+                    display: 'block', width: '100%', padding: '10px 16px',
+                    background: 'transparent', border: 'none', textAlign: 'left',
+                    fontSize: '13px', color: 'var(--danger)', cursor: 'pointer',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >✕ Limpiar selección</button>
+                </div>
+              )}
+            </div>
+          )}
           <button onClick={() => setMostrarResumen(true)} style={{
             padding: '8px 14px', borderRadius: '8px',
             border: '0.5px solid var(--border)', background: 'var(--bg)',
@@ -1139,6 +1203,21 @@ export default function OrdenesTrabajo() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
+                  <th style={{ ...TH, width: '40px', cursor: 'default' }}>
+                    <div onClick={() => {
+                      if (selected.size === filtradas.length) setSelected(new Set())
+                      else setSelected(new Set(filtradas.map(o => o.id)))
+                    }} style={{
+                      width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer',
+                      border: selected.size > 0 ? '1.5px solid var(--accent)' : '1.5px solid var(--border-2)',
+                      background: selected.size === filtradas.length ? 'var(--accent)' : selected.size > 0 ? 'var(--accent)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {selected.size > 0 && (
+                        <div style={{ width: '7px', height: '1.5px', background: 'var(--accent-fg)', borderRadius: '1px' }} />
+                      )}
+                    </div>
+                  </th>
                   <th style={TH}>N° OT</th>
                   <th style={TH}>Tipo</th>
                   <th style={TH}>Fecha</th>
@@ -1176,6 +1255,24 @@ export default function OrdenesTrabajo() {
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       style={{ transition: 'background 0.1s' }}>
+                      <td style={TD}>
+                        <div onClick={() => {
+                          const s = new Set(selected)
+                          s.has(o.id) ? s.delete(o.id) : s.add(o.id)
+                          setSelected(s)
+                        }} style={{
+                          width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer',
+                          border: selected.has(o.id) ? '1.5px solid var(--accent)' : '1.5px solid var(--border-2)',
+                          background: selected.has(o.id) ? 'var(--accent)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {selected.has(o.id) && (
+                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                              <path d="M1.5 4.5l2 2 4-4" stroke="var(--accent-fg)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ ...TD, fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)', fontWeight: 500 }}>
                         {o.numero_ot}
                       </td>
@@ -1228,19 +1325,19 @@ export default function OrdenesTrabajo() {
                           )}
                           {!soloLectura && (
                             <><button onClick={() => setOrdenEditar(o)} style={{
-                                fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
-                                border: '0.5px solid var(--border)', background: 'var(--bg)',
-                                color: 'var(--text-2)', cursor: 'pointer',
+                              fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
+                              border: '0.5px solid var(--border)', background: 'var(--bg)',
+                              color: 'var(--text-2)', cursor: 'pointer',
                             }}>✏️</button>
-                            <button onClick={async () => {
+                              <button onClick={async () => {
                                 if (!confirm(`¿Eliminar OT ${o.numero_ot}?`)) return
                                 await api.delete(`/ordenes-trabajo/${o.id}`)
                                 cargar()
-                            }} style={{
+                              }} style={{
                                 fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
                                 border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
                                 color: 'var(--danger)', cursor: 'pointer',
-                            }}>✕</button></>
+                              }}>✕</button></>
                           )}
                           {soloLectura && <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>—</span>}
                         </div>
