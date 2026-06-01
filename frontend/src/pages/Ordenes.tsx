@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { dbApi, marketplaceApi, api } from '../api/client'
 import VistaMaestra from '../components/components_orders/VistaMaestra'
 import ModalEmitirBoleta from '../components/components_orders/ModalEmitirBoleta'
+import ModalBoletasMasivo from '../components/components_orders/ModalBoletasMasivo'
 import OrdenModal from '../components/components_orders/OrdenModal'
 import ManifiestoDespacho from '../components/components_orders/ManifiestoDespacho'
 
@@ -197,6 +198,7 @@ export default function Ordenes() {
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<Orden | null>(null)
   const [mostrarMaestra, setMostrarMaestra] = useState(false)
   const [ordenParaBoleta, setOrdenParaBoleta] = useState<Orden | null>(null)
+  const [mostrarBoletasMasivo, setMostrarBoletasMasivo] = useState(false)
   const [mostrarManifiesto, setMostrarManifiesto] = useState(false)
 
   const cargar = async () => {
@@ -367,6 +369,13 @@ export default function Ordenes() {
         onEmitida={() => cargar()}
       />
     )}
+    {mostrarBoletasMasivo && (
+      <ModalBoletasMasivo
+        ordenes={filtradas.filter(o => selected.has(o.orden_id))}
+        onClose={() => setMostrarBoletasMasivo(false)}
+        onCompletado={() => cargar()}
+      />
+    )}
 
       {/* Topbar */}
       <div style={{
@@ -478,6 +487,9 @@ export default function Ordenes() {
           </span>
           <button style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)', cursor: 'pointer', fontWeight: 500 }}>
             Marcar despachadas
+          </button>
+          <button onClick={() => setMostrarBoletasMasivo(true)} style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: '0.5px solid var(--success)', background: 'var(--success-bg)', color: 'var(--success)', cursor: 'pointer', fontWeight: 500 }}>
+            🧾 Emitir boletas ({selected.size})
           </button>
           <button style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: '0.5px solid var(--border-2)', background: 'var(--bg-2)', color: 'var(--text-1)', cursor: 'pointer' }}>
             Imprimir etiquetas
