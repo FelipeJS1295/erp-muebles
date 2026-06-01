@@ -42,6 +42,18 @@ const mktStyle: Record<string, { bg: string; color: string }> = {
   manual:        { bg: 'var(--bg-3)',       color: 'var(--text-2)' },
 }
 
+function ajustarFechaDespacho(fechaStr: string, marketplace: string): string {
+  const [y, m, d] = fechaStr.split('-').map(Number)
+  const fecha = new Date(y, m - 1, d)
+  const diasRestar = marketplace === 'falabella' ? 2 : 1
+  fecha.setDate(fecha.getDate() - diasRestar)
+  if (fecha.getDay() === 0) fecha.setDate(fecha.getDate() - 2)
+  const yy = fecha.getFullYear()
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dd = String(fecha.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 function getEstadoUnificado(orden: any): string {
   if (orden.fulfillment === 'by-paris') return 'Despachada'
   const hoy = getHoy()
@@ -83,7 +95,8 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
         return d <= hoy
       })
       .map(o => {
-        const d = parseFecha(o.fecha_despacho!)
+        const fechaAjustada = ajustarFechaDespacho(o.fecha_despacho!, o.marketplace)
+        const d = parseFecha(fechaAjustada)
         const diff = Math.ceil((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
         const items = o.items || []
         const primer = Array.isArray(items) ? items[0] : null
@@ -112,7 +125,7 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
           <td style="padding:8px 12px;border-bottom:1px solid #eee;font-family:monospace;font-size:11px">${o.orden_id}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee">${o.descripcion}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee">${o.cliente || '—'}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.fecha_despacho}</td>
+           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${o.fecha_despacho ? ajustarFechaDespacho(o.fecha_despacho, o.marketplace) : '—'}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${diasLabel}</td>
         </tr>
       `
@@ -268,7 +281,7 @@ export default function ManifiestoDespacho({ ordenes, onClose }: Props) {
                       </td>
                       <td style={{ ...TD, fontSize: '12px', color: 'var(--text-2)' }}>{o.cliente || '—'}</td>
                       <td style={{ ...TD, textAlign: 'center', fontSize: '12px', fontFamily: 'monospace', color: 'var(--text-2)' }}>
-                        {o.fecha_despacho}
+                        {o.fecha_despacho ? ajustarFechaDespacho(o.fecha_despacho, o.marketplace) : '—'}
                       </td>
                       <td style={{ ...TD, textAlign: 'center' }}>
                         {o.diff < 0 ? (
