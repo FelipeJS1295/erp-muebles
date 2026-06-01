@@ -38,6 +38,24 @@ interface Orden {
 // Helpers
 // =============================================================================
 
+function ajustarFechaDespacho(fechaStr: string, marketplace: string): string {
+  const [y, m, d] = fechaStr.split('-').map(Number)
+  const fecha = new Date(y, m - 1, d)
+
+  const diasRestar = marketplace === 'falabella' ? 2 : 1
+  fecha.setDate(fecha.getDate() - diasRestar)
+
+  // Si cae domingo (0), retroceder al viernes
+  if (fecha.getDay() === 0) {
+    fecha.setDate(fecha.getDate() - 2)
+  }
+
+  const yy = fecha.getFullYear()
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dd = String(fecha.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 function getEstadoUnificado(orden: any): string {
   // Órdenes de fulfillment se consideran siempre despachadas
   if (orden.fulfillment === 'by-paris') return 'Despachada'
@@ -46,7 +64,8 @@ function getEstadoUnificado(orden: any): string {
   const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   if (orden.fecha_despacho) {
-    const [y, m, d] = orden.fecha_despacho.split('-').map(Number)
+    const fechaAjustada = ajustarFechaDespacho(orden.fecha_despacho, orden.marketplace)
+    const [y, m, d] = fechaAjustada.split('-').map(Number)
     const fecha = new Date(y, m - 1, d)
     const activos = [
       'Created', 'Acknowledged',
@@ -80,11 +99,12 @@ const estadoStyle: Record<string, { bg: string; color: string }> = {
   'Cancelada':  { bg: 'var(--bg-3)',       color: 'var(--text-3)' },
 }
 
-function fechaUrgencia(fecha: string | null, estado: string) {
+function fechaUrgencia(fecha: string | null, estado: string, marketplace: string) {
   if (!fecha) return 'neutral'
   const now = new Date()
   const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const [y, m, d] = fecha.split('-').map(Number)
+  const ajustada = ajustarFechaDespacho(fecha, marketplace)
+  const [y, m, d] = ajustada.split('-').map(Number)
   const df = new Date(y, m - 1, d)
   const activos = ['Created', 'Acknowledged', 'ready_to_ship', 'awaiting_fulfillment']
   if (df < hoy && activos.includes(estado)) return 'urgent'
@@ -521,7 +541,7 @@ export default function Ordenes() {
                   const estadoERP = getEstadoUnificado(o)
                   const est = estadoStyle[estadoERP] || { bg: 'var(--bg-3)', color: 'var(--text-3)' }
                   const isWalmart = o.marketplace === 'walmart_chile'
-                  const urgencia = fechaUrgencia(o.fecha_despacho, o.estado)
+                  const urgencia = fechaUrgencia(o.fecha_despacho, o.estado, o.marketplace)
                   const fbs = fechaBadgeStyle[urgencia]
 
                   return (
@@ -546,7 +566,7 @@ export default function Ordenes() {
                       </td>
                       <td style={TD}>
                         <span style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '12px', fontFamily: 'monospace', background: fbs.bg, color: fbs.color, fontWeight: 500 }}>
-                          {o.fecha_despacho || '—'}
+                          {o.fecha_despacho ? ajustarFechaDespacho(o.fecha_despacho, o.marketplace) : '—'}
                         </span>
                       </td>
                       <td style={TD}>
