@@ -1227,7 +1227,7 @@ export default function OrdenesTrabajo() {
                             }}>✓</button>
                           )}
                           {!soloLectura && (
-                            <button onClick={() => setOrdenEditar(o)} style={{
+                            <><button onClick={() => setOrdenEditar(o)} style={{
                                 fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
                                 border: '0.5px solid var(--border)', background: 'var(--bg)',
                                 color: 'var(--text-2)', cursor: 'pointer',
@@ -1240,7 +1240,7 @@ export default function OrdenesTrabajo() {
                                 fontSize: '11px', padding: '4px 8px', borderRadius: '5px',
                                 border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
                                 color: 'var(--danger)', cursor: 'pointer',
-                            }}>✕</button>
+                            }}>✕</button></>
                           )}
                           {soloLectura && <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>—</span>}
                         </div>
