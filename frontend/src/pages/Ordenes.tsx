@@ -44,10 +44,11 @@ function ajustarFechaDespacho(fechaStr: string, marketplace: string): string {
   const [y, m, d] = fechaStr.split('-').map(Number)
   const fecha = new Date(y, m - 1, d)
 
+  if (marketplace === 'hites') return fechaStr
+
   const diasRestar = marketplace === 'falabella' ? 2 : 1
   fecha.setDate(fecha.getDate() - diasRestar)
 
-  // Si cae domingo (0), retroceder al viernes
   if (fecha.getDay() === 0) {
     fecha.setDate(fecha.getDate() - 2)
   }
@@ -462,6 +463,7 @@ export default function Ordenes() {
           <option value="paris_chile">Paris Chile</option>
           <option value="falabella">Falabella Chile</option>
           <option value="ripley">Ripley Chile</option>
+          <option value="hites">Hites</option>
         </select>
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={IS}>
           <option value="activas">Activas (Nuevas + Atrasadas)</option>
@@ -581,12 +583,17 @@ export default function Ordenes() {
                         padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500,
                         background: isWalmart ? 'var(--walmart-bg)' :
                                     o.marketplace === 'paris_chile' ? 'var(--paris-bg)' :
-                                    o.marketplace === 'ripley' ? 'var(--ripley-bg)' : 'var(--falabella-bg)',
+                                    o.marketplace === 'ripley' ? 'var(--ripley-bg)' :
+                                    o.marketplace === 'hites' ? 'var(--bg-3)' : 'var(--falabella-bg)',
                         color: isWalmart ? 'var(--walmart)' :
                               o.marketplace === 'paris_chile' ? 'var(--paris)' :
-                              o.marketplace === 'ripley' ? 'var(--ripley)' : 'var(--falabella)',
+                              o.marketplace === 'ripley' ? 'var(--ripley)' :
+                              o.marketplace === 'hites' ? 'var(--text-2)' : 'var(--falabella)',
                       }}>
-                        {isWalmart ? 'Walmart' : o.marketplace === 'paris_chile' ? 'Paris' : o.marketplace === 'ripley' ? 'Ripley' : 'Falabella'}
+                        {isWalmart ? 'Walmart' :
+                        o.marketplace === 'paris_chile' ? 'Paris' :
+                        o.marketplace === 'ripley' ? 'Ripley' :
+                        o.marketplace === 'hites' ? 'Hites' : 'Falabella'}
                       </span>
                       </td>
                       <td style={TD}>
