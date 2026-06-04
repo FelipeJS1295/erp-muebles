@@ -251,7 +251,7 @@ export default function ModalHites({ onClose, onSave }: Props) {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--bg-3)', position: 'sticky', top: 0 }}>
-                        {['N° Orden', 'Cliente', 'RUT', 'Fecha', 'Productos', 'Total'].map(h => (
+                        {['N° Orden', 'Fecha', 'Productos', 'Total'].map(h => (
                           <th key={h} style={{
                             padding: '8px 12px', fontSize: '11px', fontWeight: 500,
                             color: 'var(--text-3)', textAlign: 'left',
@@ -263,12 +263,16 @@ export default function ModalHites({ onClose, onSave }: Props) {
                     <tbody>
                       {preview.map((row, i) => (
                         <tr key={i} style={{ borderBottom: i < preview.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
-                          <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)' }}>{row.orden_id}</td>
-                          <td style={{ padding: '8px 12px', fontSize: '13px', whiteSpace: 'nowrap' }}>{row.cliente_nombre || '—'}</td>
-                          <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-3)', fontFamily: 'monospace' }}>{row.cliente_rut || '—'}</td>
-                          <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{row.fecha_despacho || '—'}</td>
-                          <td style={{ padding: '8px 12px', fontSize: '12px' }}>{row.items?.length || 0} item{row.items?.length !== 1 ? 's' : ''}</td>
-                          <td style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 500 }}>${Number(row.total).toLocaleString('es-CL')}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)' }}>{row.orden_id}</td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
+                            {row.fecha_despacho
+                                ? `${String(row.fecha_despacho).slice(6, 8)}/${String(row.fecha_despacho).slice(4, 6)}/${String(row.fecha_despacho).slice(0, 4)}`
+                                : '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-2)' }}>
+                            {row.items?.map((it: any) => it.nombre).filter(Boolean).join(', ') || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 500 }}>${Number(row.total).toLocaleString('es-CL')}</td>
                         </tr>
                       ))}
                     </tbody>
