@@ -11,6 +11,7 @@ class MarketplaceEnum(str, enum.Enum):
     falabella = "falabella"
     ripley = "ripley"
     manual = "manual"
+    hites = "hites"
 
 
 class EstadoOrdenEnum(str, enum.Enum):

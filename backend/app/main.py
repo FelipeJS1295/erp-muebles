@@ -26,6 +26,7 @@ from app.routers.boletas import router as boletas_router
 from app.routers.api_clientes import router as api_clientes_router
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
+from app.models.sub_orden_data import SubOrdenData
 from datetime import datetime
 
 import os
@@ -306,6 +307,88 @@ async def actualizar_stock_paris(sku: str, cantidad: int):
         return await paris_service.actualizar_stock(sku, cantidad)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error Paris API: {str(e)}")
+
+@app.post("/api/v1/ordenes/hites/importar", tags=["Base de Datos"])
+async def importar_ordenes_hites(payload: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        guardadas = 0
+        duplicadas = 0
+        ordenes = payload.get("ordenes", [])
+
+        for o in ordenes:
+            # Verificar si ya existe
+            result = await db.execute(
+                select(Orden).where(
+                    Orden.marketplace == MarketplaceEnum.hites,
+                    Orden.orden_id_marketplace == str(o.get("orden_id")),
+                )
+            )
+            existente = result.scalar_one_or_none()
+
+            if existente:
+                duplicadas += 1
+                continue
+
+            # Mapear estado
+            estado_mkt = o.get("estado_marketplace", "")
+            if estado_mkt in ("EN_PREPARACION", "PAID"):
+                estado_interno = EstadoOrdenEnum.pendiente
+            elif estado_mkt in ("SHIPPED", "DISPATCHED"):
+                estado_interno = EstadoOrdenEnum.despachada
+            elif estado_mkt in ("DELIVERED",):
+                estado_interno = EstadoOrdenEnum.entregada
+            elif estado_mkt in ("CANCELLED", "CANCELED"):
+                estado_interno = EstadoOrdenEnum.cancelada
+            else:
+                estado_interno = EstadoOrdenEnum.pendiente
+
+            # Parsear fecha_despacho (viene como "20260603")
+            fecha_raw = str(o.get("fecha_despacho", ""))
+            fecha_despacho = None
+            if len(fecha_raw) == 8:
+                fecha_despacho = f"{fecha_raw[:4]}-{fecha_raw[4:6]}-{fecha_raw[6:]}"
+
+            nueva = Orden(
+                marketplace=MarketplaceEnum.hites,
+                orden_id_marketplace=str(o.get("orden_id")),
+                cliente_nombre=o.get("cliente_nombre", ""),
+                estado_marketplace=estado_mkt,
+                estado_interno=estado_interno,
+                items=o.get("items", []),
+                total=float(o.get("total", 0)),
+                fecha_despacho=fecha_despacho,
+                fecha_marketplace=datetime.utcnow(),
+                fecha_creacion=datetime.utcnow(),
+                fecha_actualizacion=datetime.utcnow(),
+                raw=o.get("raw", {}),
+            )
+            db.add(nueva)
+
+            # Guardar sub_orden_data
+            await db.flush()
+            sub = SubOrdenData(
+                orden_id=nueva.id,
+                orden_id_marketplace=str(o.get("orden_id")),
+                marketplace="hites",
+                cliente_nombre=o.get("cliente_nombre", ""),
+                cliente_rut=o.get("cliente_rut", ""),
+                cliente_email=o.get("cliente_email", ""),
+                cliente_telefono=o.get("cliente_telefono", ""),
+                shipping_direccion=o.get("direccion", ""),
+                total=float(o.get("total", 0)),
+                costo_despacho=float(o.get("costo_despacho", 0)),
+                subtotal_productos=float(o.get("subtotal_productos", 0)),
+            )
+            db.add(sub)
+            guardadas += 1
+
+        await db.commit()
+        return {"guardadas": guardadas, "duplicadas": duplicadas}
+
+    except Exception as e:
+        await db.rollback()
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error importando órdenes Hites: {str(e)}")
 
 # =============================================================================
 # Base de datos — Órdenes

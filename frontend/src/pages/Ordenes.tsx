@@ -5,6 +5,7 @@ import ModalEmitirBoleta from '../components/components_orders/ModalEmitirBoleta
 import ModalBoletasMasivo from '../components/components_orders/ModalBoletasMasivo'
 import OrdenModal from '../components/components_orders/OrdenModal'
 import ManifiestoDespacho from '../components/components_orders/ManifiestoDespacho'
+import ModalHites from '../components/components_orders/ModalHites'
 
 // =============================================================================
 // Tipos
@@ -200,6 +201,7 @@ export default function Ordenes() {
   const [ordenParaBoleta, setOrdenParaBoleta] = useState<Orden | null>(null)
   const [mostrarBoletasMasivo, setMostrarBoletasMasivo] = useState(false)
   const [mostrarManifiesto, setMostrarManifiesto] = useState(false)
+  const [mostrarHites, setMostrarHites] = useState(false);
 
   const cargar = async () => {
     try {
@@ -362,6 +364,7 @@ export default function Ordenes() {
     {ordenSeleccionada && <OrdenModal orden={ordenSeleccionada} onClose={() => setOrdenSeleccionada(null)} />}
     {mostrarMaestra && <VistaMaestra ordenes={ordenes} onClose={() => setMostrarMaestra(false)} />}
     {mostrarManifiesto && <ManifiestoDespacho ordenes={ordenes} onClose={() => setMostrarManifiesto(false)} />}
+    {mostrarHites && <ModalHites onClose={() => setMostrarHites(false)} onSave={sincronizar} />}
     {ordenParaBoleta && (
       <ModalEmitirBoleta
         orden={ordenParaBoleta}
@@ -414,6 +417,15 @@ export default function Ordenes() {
               <path d="M2 2h8v8H2zM4 5h4M4 7h2"/>
             </svg>
             Manifiesto
+          </button>
+          <button onClick={() => setMostrarHites(true)} style={{
+            ...IS, display: 'flex', alignItems: 'center', gap: '6px',
+            background: '#16a34a', color: '#fff', border: 'none', fontWeight: 500,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M6 1v10M1 6h10"/>
+            </svg>
+            Agregar Hites
           </button>
           <button onClick={() => setMostrarMaestra(true)} style={{
             ...IS, display: 'flex', alignItems: 'center', gap: '6px',
