@@ -69,6 +69,24 @@ export default function ModalHites({ onClose, onSave }: Props) {
     })
   }
 
+  const agregarDiasHabiles = (fechaStr: string, dias: number): string => {
+    if (!fechaStr || fechaStr.length !== 8) return ''
+    const y = parseInt(fechaStr.slice(0, 4))
+    const m = parseInt(fechaStr.slice(4, 6)) - 1
+    const d = parseInt(fechaStr.slice(6, 8))
+    const fecha = new Date(y, m, d)
+    let agregados = 0
+    while (agregados < dias) {
+        fecha.setDate(fecha.getDate() + 1)
+        const dow = fecha.getDay()
+        if (dow !== 0 && dow !== 6) agregados++
+    }
+    const dd = String(fecha.getDate()).padStart(2, '0')
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0')
+    const yyyy = fecha.getFullYear()
+    return `${dd}/${mm}/${yyyy}`
+}
+
   const procesarArchivos = async () => {
     if (!archivoOrdenes || !archivoDetalle) {
       setError('Debes cargar ambos archivos')
@@ -127,6 +145,7 @@ export default function ModalHites({ onClose, onSave }: Props) {
           direccion: direccion || '',
           ciudad: ciudad || '',
           fecha_despacho: String(row['dateSale'] || '').trim(),
+          fecha_venta: String(row['dateSale'] || '').trim(),
           estado_marketplace: String(row['status'] || '').trim(),
           total: Number(row['grossTotal']) || 0,
           costo_despacho: shippingMap[nOrden] || 0,
@@ -251,7 +270,7 @@ export default function ModalHites({ onClose, onSave }: Props) {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--bg-3)', position: 'sticky', top: 0 }}>
-                        {['N° Orden', 'Fecha', 'Productos', 'Total'].map(h => (
+                        {['N° Orden', 'Fecha despacho', 'Estado', 'Productos', 'Total'].map(h => (
                           <th key={h} style={{
                             padding: '8px 12px', fontSize: '11px', fontWeight: 500,
                             color: 'var(--text-3)', textAlign: 'left',
@@ -265,9 +284,16 @@ export default function ModalHites({ onClose, onSave }: Props) {
                         <tr key={i} style={{ borderBottom: i < preview.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)' }}>{row.orden_id}</td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
-                            {row.fecha_despacho
-                                ? `${String(row.fecha_despacho).slice(6, 8)}/${String(row.fecha_despacho).slice(4, 6)}/${String(row.fecha_despacho).slice(0, 4)}`
-                                : '—'}
+                            {agregarDiasHabiles(row.fecha_despacho, 3) || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                            <span style={{
+                                fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 500,
+                                background: row.estado_marketplace === 'EN_PREPARACION' ? 'var(--info-bg)' : 'var(--bg-3)',
+                                color: row.estado_marketplace === 'EN_PREPARACION' ? 'var(--info)' : 'var(--text-3)',
+                            }}>
+                                {row.estado_marketplace || '—'}
+                            </span>
                             </td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-2)' }}>
                             {row.items?.map((it: any) => it.nombre).filter(Boolean).join(', ') || '—'}
