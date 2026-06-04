@@ -24,6 +24,7 @@ const getHoy = () => {
 function ajustarFechaDespacho(fechaStr: string, marketplace: string): string {
   const [y, m, d] = fechaStr.split('-').map(Number)
   const fecha = new Date(y, m - 1, d)
+  if (marketplace === 'hites') return fechaStr
   const diasRestar = marketplace === 'falabella' ? 2 : 1
   fecha.setDate(fecha.getDate() - diasRestar)
   if (fecha.getDay() === 0) fecha.setDate(fecha.getDate() - 2)
@@ -42,7 +43,7 @@ function getEstadoUnificado(orden: any): string {
       'Created', 'Acknowledged',
       'ready_to_ship', 'awaiting_fulfillment',
       'pending', 'pending_by_seller',
-      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT', 'printed_label'
+      'WAITING_ACCEPTANCE', 'WAITING_DEBIT', 'SHIPPING', 'TO_COLLECT', 'printed_label', 'EN_PREPARACION'
     ]
     if (d < hoy && activos.includes(orden.estado)) return 'Atrasada'
   }
@@ -56,7 +57,8 @@ function getEstadoUnificado(orden: any): string {
     'WAITING_ACCEPTANCE': 'Nueva', 'WAITING_DEBIT': 'Nueva',
     'SHIPPING': 'Nueva', 'TO_COLLECT': 'Nueva',
     'RECEIVED': 'Despachada', 'CLOSED': 'Despachada',
-    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada', 'printed_label': 'Nueva','Delivered': 'Despachada',
+    'REFUSED': 'Cancelada', 'CANCELED': 'Cancelada', 'printed_label': 'Nueva', 'Delivered': 'Despachada',
+    'EN_PREPARACION': 'Nueva', 'DELIVERED': 'Despachada', 'CANCELLED': 'Cancelada',
   }
   return mapa[orden.estado] || orden.estado
 }
@@ -94,9 +96,10 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
   const tabla = useMemo(() => {
     const grupos: Record<string, Record<string, Record<string, number>>> = {}
     ordenesFiltradas.forEach(o => {
-      const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' :
-            o.marketplace === 'paris_chile' ? 'Paris' :
-            o.marketplace === 'ripley' ? 'Ripley' : 'Falabella'
+    const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' :
+          o.marketplace === 'paris_chile' ? 'Paris' :
+          o.marketplace === 'ripley' ? 'Ripley' :
+          o.marketplace === 'hites' ? 'Hites' : 'Falabella'
       const items = o.items || []
       const primer = Array.isArray(items) ? items[0] : null
       const producto = primer?.nombre || primer?.name || primer?.Name || '—'
@@ -435,6 +438,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
                   <option value="paris_chile">Paris Chile</option>
                   <option value="falabella">Falabella Chile</option>
                   <option value="ripley">Ripley Chile</option>
+                  <option value="hites">Hites</option>
                 </select>
               </div>
 
