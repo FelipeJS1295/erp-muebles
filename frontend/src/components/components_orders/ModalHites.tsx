@@ -153,7 +153,7 @@ export default function ModalHites({ onClose, onSave }: Props) {
           items,
           raw: row,
         }
-      }).filter(o => o.orden_id)
+      }).filter(o => o.orden_id && o.estado_marketplace === 'EN_PREPARACION')
 
       setPreview(resultado)
       setPaso('preview')
