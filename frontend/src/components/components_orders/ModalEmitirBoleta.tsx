@@ -54,6 +54,9 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
   const iva = total > 0 ? total - monto_neto : 0
 
   const esFactura = ordenData?.tipo_documento === 'factura'
+  console.log('orden.raw:', orden.raw)
+  console.log('business_invoice:', orden.raw?.business_invoice)
+  console.log('ordenData:', ordenData)
 
   const emitir = async () => {
     try {
