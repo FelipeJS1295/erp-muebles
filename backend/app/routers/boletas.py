@@ -227,15 +227,35 @@ async def emitir_factura_orden(orden_id: int, db: AsyncSession = Depends(get_db)
         marketplace_str = str(orden.marketplace.value if hasattr(orden.marketplace, 'value') else orden.marketplace)
 
         if marketplace_str == "paris_chile" and orden.orden_id_marketplace:
-            from app.services.marketplaces.paris import ParisMarketplaceService
-            import os
-            paris = ParisMarketplaceService(
-                api_key=os.getenv("PARIS_API_KEY", ""),
-                seller_id=os.getenv("PARIS_SELLER_ID", ""),
-                base_url=os.getenv("PARIS_BASE_URL", "https://api.marketplace.paris.cl"),
+            # Sacar order_id padre desde el raw guardado
+            raw = orden.raw or {}
+            order_id_padre = (
+                raw.get("orden_padre_id") or
+                raw.get("order", {}).get("originOrderNumber") or
+                raw.get("originOrderNumber")
             )
-            datos_factura = await paris.obtener_datos_factura(orden.orden_id_marketplace)
-            print(f"📄 Datos factura Paris frescos: {datos_factura}")
+            print(f"📄 Paris order_id padre: {order_id_padre}")
+
+            datos_factura = {}
+            if order_id_padre:
+                from app.services.marketplaces.paris import ParisMarketplaceService
+                import os
+                paris = ParisMarketplaceService(
+                    api_key=os.getenv("PARIS_API_KEY", ""),
+                    seller_id=os.getenv("PARIS_SELLER_ID", ""),
+                    base_url=os.getenv("PARIS_BASE_URL", "https://api.marketplace.paris.cl"),
+                )
+                orden_padre = await paris.obtener_orden_padre(str(order_id_padre))
+                business = orden_padre.get("businessInvoice") or {}
+                print(f"📄 Paris businessInvoice: {business}")
+                datos_factura = {
+                    "rut": business.get("rut") or business.get("documentNumber"),
+                    "razon_social": business.get("razonSocial") or business.get("name"),
+                    "giro": business.get("giro") or business.get("activity"),
+                    "direccion": business.get("address") or business.get("direccion"),
+                    "ciudad": business.get("city") or business.get("ciudad"),
+                    "comuna": business.get("communaCode") or business.get("comuna"),
+                }
 
             rut_cliente = datos_factura.get("rut") or (sod.factura_rut if sod else None) or "66666666-6"
             nombre_cliente = datos_factura.get("razon_social") or (sod.factura_razon_social if sod else None) or "Sin Razón Social"
