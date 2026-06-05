@@ -223,8 +223,26 @@ async def emitir_factura_orden(orden_id: int, db: AsyncSession = Depends(get_db)
         result_sod = await db.execute(select(SubOrdenData).where(SubOrdenData.orden_id == orden_id))
         sod = result_sod.scalar_one_or_none()
 
-        # Datos del receptor (empresa que pide factura)
-        if sod and sod.factura_rut:
+        # Datos del receptor — traer frescos desde Paris si es paris_chile
+        marketplace_str = str(orden.marketplace.value if hasattr(orden.marketplace, 'value') else orden.marketplace)
+
+        if marketplace_str == "paris_chile" and orden.orden_id_marketplace:
+            from app.services.marketplaces.paris import ParisMarketplaceService
+            import os
+            paris = ParisMarketplaceService(
+                api_key=os.getenv("PARIS_API_KEY", ""),
+                seller_id=os.getenv("PARIS_SELLER_ID", ""),
+                base_url=os.getenv("PARIS_BASE_URL", "https://api.marketplace.paris.cl"),
+            )
+            datos_factura = await paris.obtener_datos_factura(orden.orden_id_marketplace)
+            print(f"📄 Datos factura Paris frescos: {datos_factura}")
+
+            rut_cliente = datos_factura.get("rut") or (sod.factura_rut if sod else None) or "66666666-6"
+            nombre_cliente = datos_factura.get("razon_social") or (sod.factura_razon_social if sod else None) or "Sin Razón Social"
+            giro_cliente = datos_factura.get("giro") or (sod.factura_giro if sod else None) or "Sin Giro"
+            comuna_cliente = datos_factura.get("comuna") or (sod.factura_comuna if sod else None) or "Santiago"
+            direccion_cliente = datos_factura.get("direccion") or (sod.factura_direccion if sod else None) or "Sin Dirección"
+        elif sod and sod.factura_rut:
             rut_cliente = sod.factura_rut
             nombre_cliente = sod.factura_razon_social or "Sin Razón Social"
             giro_cliente = sod.factura_giro or "Sin Giro"
@@ -232,10 +250,10 @@ async def emitir_factura_orden(orden_id: int, db: AsyncSession = Depends(get_db)
             direccion_cliente = sod.factura_direccion or "Sin Dirección"
         else:
             rut_cliente = (sod.cliente_rut if sod else None) or "66666666-6"
-            nombre_cliente = (sod.cliente_nombre if sod else None) or orden.cliente_nombre or "Cliente Generico"
+            nombre_cliente = (sod.cliente_nombre if sod else None) or "Cliente Generico"
             giro_cliente = "Sin Giro"
             comuna_cliente = (sod.billing_comuna if sod else None) or "Santiago"
-            direccion_cliente = (sod.billing_direccion if sod else None) or "Sin Direccion"
+            direccion_cliente = (sod.billing_direccion if sod else None) or "Sin Dirección"
 
         # Armar productos
         items = orden.items or []

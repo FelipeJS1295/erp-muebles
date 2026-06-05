@@ -59,6 +59,54 @@ class ParisMarketplaceService:
         except Exception as e:
             print(f"⚠️ Error orden padre {order_id}: {e}")
         return {}
+    
+    async def obtener_datos_factura(self, sub_order_number: str) -> dict:
+        """Obtiene los datos de factura frescos desde la API de Paris dado un sub_order_number."""
+        headers = await self._headers()
+        try:
+            # Primero obtener la sub-orden para sacar el order_id padre
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.base_url}/v1/sub-orders/{sub_order_number}",
+                    headers=headers,
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    print(f"⚠️ Paris sub-orden {sub_order_number}: {resp.status_code}")
+                    return {}
+                sub_orden = resp.json()
+
+            order_id = (
+                sub_orden.get("order", {}).get("originOrderNumber") or
+                sub_orden.get("originOrderNumber") or
+                sub_orden.get("orderId")
+            )
+
+            if not order_id:
+                print(f"⚠️ No se encontró order_id padre para sub-orden {sub_order_number}")
+                return {}
+
+            # Obtener orden padre con businessInvoice
+            orden_padre = await self.obtener_orden_padre(str(order_id))
+            business = orden_padre.get("businessInvoice") or {}
+            tipo_doc = orden_padre.get("originInvoiceType") or "boleta"
+
+            print(f"📄 Paris businessInvoice para {sub_order_number}: {business}")
+
+            return {
+                "tipo_documento": tipo_doc,
+                "rut": business.get("rut") or business.get("documentNumber"),
+                "razon_social": business.get("razonSocial") or business.get("name"),
+                "giro": business.get("giro") or business.get("activity"),
+                "direccion": business.get("address") or business.get("direccion"),
+                "ciudad": business.get("city") or business.get("ciudad"),
+                "comuna": business.get("communaCode") or business.get("comuna"),
+                "email": business.get("email"),
+                "raw_business": business,
+            }
+        except Exception as e:
+            print(f"⚠️ Error obteniendo datos factura Paris {sub_order_number}: {e}")
+            return {}
 
     async def obtener_ordenes(self, limit: int = 50, offset: int = 0) -> dict:
         """Obtiene sub-órdenes del seller en Paris Marketplace."""
