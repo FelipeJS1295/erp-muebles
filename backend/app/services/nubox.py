@@ -174,7 +174,7 @@ async def emitir_factura(
     ]
 
     async with httpx.AsyncClient(timeout=60) as client:
-        url = f"{NUBOX_BASE_URL}/v1/sales/issuance"
+        url = "https://api.nubox.com/v1/sales/issuance"
         resp = await client.post(
             url,
             headers={"token": token, "Content-Type": "application/json"},
