@@ -67,8 +67,7 @@ function getEstadoUnificado(orden: any): string {
   const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   if (orden.fecha_despacho) {
-    const fechaAjustada = ajustarFechaDespacho(orden.fecha_despacho, orden.marketplace)
-    const [y, m, d] = fechaAjustada.split('-').map(Number)
+    const [y, m, d] = orden.fecha_despacho.split('-').map(Number)
     const fecha = new Date(y, m - 1, d)
     const activos = [
       'Created', 'Acknowledged',
@@ -107,12 +106,14 @@ function fechaUrgencia(fecha: string | null, estado: string, marketplace: string
   if (!fecha) return 'neutral'
   const now = new Date()
   const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const ajustada = ajustarFechaDespacho(fecha, marketplace)
-  const [y, m, d] = ajustada.split('-').map(Number)
+  const [y, m, d] = fecha.split('-').map(Number)
   const df = new Date(y, m - 1, d)
   const activos = ['Created', 'Acknowledged', 'ready_to_ship', 'awaiting_fulfillment']
   if (df < hoy && activos.includes(estado)) return 'urgent'
-  const diff = Math.ceil((df.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+  const ajustada = ajustarFechaDespacho(fecha, marketplace)
+  const [ya, ma, da] = ajustada.split('-').map(Number)
+  const dfa = new Date(ya, ma - 1, da)
+  const diff = Math.ceil((dfa.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
   if (diff <= 2) return 'soon'
   return 'ok'
 }
