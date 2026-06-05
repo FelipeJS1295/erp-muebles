@@ -128,21 +128,41 @@ export default function ModalEmitirBoleta({ orden, onClose, onEmitida }: Props) 
                 )}
               </div>
 
-              <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '12px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Cliente</div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', marginBottom: '4px' }}>
-                  {ordenData?.cliente_nombre || orden.cliente || 'Cliente Generico'}
+              <div style={{ background: 'var(--bg)', border: `0.5px solid ${esFactura ? 'var(--warning)' : 'var(--border)'}`, borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: esFactura ? 'var(--warning)' : 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                  {esFactura ? '🏢 Empresa (Factura)' : 'Cliente'}
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-3)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <span>RUT: <strong>{ordenData?.cliente_rut || '66.666.666-6'}</strong></span>
-                  {ordenData?.cliente_email && <span>Email: {ordenData.cliente_email}</span>}
-                </div>
-                {ordenData?.billing_direccion && (
-                  <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '4px' }}>
-                    {ordenData.billing_direccion}, {ordenData.billing_ciudad}
-                    {ordenData.billing_comuna && ` · Comuna: ${ordenData.billing_comuna}`}
+                {esFactura ? (<>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', marginBottom: '4px' }}>
+                    {ordenData?.factura_razon_social || orden.raw?.business_invoice?.businessName || 'Sin Razón Social'}
                   </div>
-                )}
+                  <div style={{ fontSize: '12px', color: 'var(--text-3)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <span>RUT: <strong>{ordenData?.factura_rut || orden.raw?.business_invoice?.companyRut || '—'}</strong></span>
+                    {(ordenData?.factura_giro || orden.raw?.business_invoice?.businessArea) && (
+                      <span>Giro: {ordenData?.factura_giro || orden.raw?.business_invoice?.businessArea}</span>
+                    )}
+                  </div>
+                  {(ordenData?.factura_direccion || orden.raw?.business_invoice?.address) && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '4px' }}>
+                      {ordenData?.factura_direccion || orden.raw?.business_invoice?.address}
+                      {(ordenData?.factura_comuna || orden.raw?.business_invoice?.comuna) && ` · ${ordenData?.factura_comuna || orden.raw?.business_invoice?.comuna}`}
+                    </div>
+                  )}
+                </>) : (<>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', marginBottom: '4px' }}>
+                    {ordenData?.cliente_nombre || orden.cliente || 'Cliente Generico'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-3)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <span>RUT: <strong>{ordenData?.cliente_rut || '66.666.666-6'}</strong></span>
+                    {ordenData?.cliente_email && <span>Email: {ordenData.cliente_email}</span>}
+                  </div>
+                  {ordenData?.billing_direccion && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '4px' }}>
+                      {ordenData.billing_direccion}, {ordenData.billing_ciudad}
+                      {ordenData.billing_comuna && ` · Comuna: ${ordenData.billing_comuna}`}
+                    </div>
+                  )}
+                </>)}
               </div>
 
               {ordenData?.tipo_documento === 'factura' && ordenData?.factura_rut && (
