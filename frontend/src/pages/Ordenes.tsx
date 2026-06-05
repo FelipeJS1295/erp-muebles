@@ -618,11 +618,10 @@ export default function Ordenes() {
                                 color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
                               }}>📄 Folio {o.boleta_folio}</button>
                             ) : o.tipo_documento === 'factura' ? (
-                              <button disabled style={{
+                              <button onClick={e => { e.stopPropagation(); setOrdenParaBoleta(o) }} style={{
                                 fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
                                 border: '0.5px solid var(--warning)', background: 'var(--warning-bg)',
-                                color: 'var(--warning)', cursor: 'not-allowed', whiteSpace: 'nowrap',
-                                opacity: 0.7,
+                                color: 'var(--warning)', cursor: 'pointer', whiteSpace: 'nowrap',
                               }}>🧾 Facturar</button>
                             ) : (
                               <button onClick={() => setOrdenParaBoleta(o)} style={{
