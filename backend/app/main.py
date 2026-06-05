@@ -901,6 +901,16 @@ async def sincronizar_ordenes_paris(
             if existente:
                 if existente.eliminada == 1:
                     continue
+                # Refrescar estado directo desde la API para esta sub-orden
+                try:
+                    raw_actualizado = await paris_service.obtener_sub_orden(str(o["sub_orden_id"]))
+                    estado_fresco = raw_actualizado.get("status") or raw_actualizado.get("state")
+                    if isinstance(estado_fresco, dict):
+                        estado_fresco = estado_fresco.get("name")
+                    if estado_fresco:
+                        estado_nombre = estado_fresco
+                except Exception as e_ref:
+                    print(f"⚠️ No se pudo refrescar sub-orden {o['sub_orden_id']}: {e_ref}")
                 existente.estado_marketplace = estado_nombre
                 existente.fecha_actualizacion = datetime.utcnow()
                 orden_obj = existente
@@ -973,6 +983,30 @@ async def sincronizar_ordenes_paris(
                     setattr(sod, k, v)
             else:
                 db.add(SubOrdenData(**sod_data))
+
+        # Refrescar órdenes Paris activas que no vinieron en el sync
+        ids_sincronizados = {str(o["sub_orden_id"]) for o in ordenes}
+        result_activas = await db.execute(
+            select(Orden).where(
+                Orden.marketplace == MarketplaceEnum.paris,
+                Orden.eliminada == 0,
+                Orden.estado_marketplace.in_(['ready_to_ship', 'awaiting_fulfillment', 'printed_label']),
+            )
+        )
+        activas_bd = result_activas.scalars().all()
+        for orden_activa in activas_bd:
+            if orden_activa.orden_id_marketplace not in ids_sincronizados:
+                try:
+                    raw_ref = await paris_service.obtener_sub_orden(orden_activa.orden_id_marketplace)
+                    estado_ref = raw_ref.get("status") or raw_ref.get("state")
+                    if isinstance(estado_ref, dict):
+                        estado_ref = estado_ref.get("name")
+                    if estado_ref:
+                        orden_activa.estado_marketplace = estado_ref
+                        orden_activa.fecha_actualizacion = datetime.utcnow()
+                        print(f"🔄 Paris actualizado {orden_activa.orden_id_marketplace}: {estado_ref}")
+                except Exception as e_act:
+                    print(f"⚠️ Error refrescando {orden_activa.orden_id_marketplace}: {e_act}")
 
         await db.commit()
         return {

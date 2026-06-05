@@ -294,6 +294,20 @@ class ParisMarketplaceService:
                 resultado[sku] = stock
         return resultado
 
+async def obtener_sub_orden(self, sub_order_number: str) -> dict:
+    """Obtiene el estado actualizado de una sub-orden específica."""
+    headers = await self._headers()
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{self.base_url}/v1/sub-orders/{sub_order_number}",
+            headers=headers,
+            timeout=30,
+        )
+        if response.status_code == 200:
+            return response.json()
+        print(f"⚠️ Paris sub-orden {sub_order_number}: {response.status_code}")
+        return {}
+
     async def enviar_boleta(self, order_number: str, folio: int, pdf_bytes: bytes, emission_date: str) -> dict:
         """Envía la boleta a Paris Marketplace."""
         headers = await self._headers()
