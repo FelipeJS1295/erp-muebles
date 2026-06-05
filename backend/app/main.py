@@ -1001,6 +1001,8 @@ async def sincronizar_ordenes_paris(
                     estado_ref = raw_ref.get("status") or raw_ref.get("state")
                     if isinstance(estado_ref, dict):
                         estado_ref = estado_ref.get("name")
+                    if raw_ref.get("_not_found"):
+                        estado_ref = "shipped"
                     if estado_ref:
                         orden_activa.estado_marketplace = estado_ref
                         orden_activa.fecha_actualizacion = datetime.utcnow()

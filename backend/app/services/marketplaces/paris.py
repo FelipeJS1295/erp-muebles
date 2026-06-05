@@ -303,6 +303,9 @@ async def obtener_sub_orden(self, sub_order_number: str) -> dict:
             headers=headers,
             timeout=30,
         )
+        if response.status_code == 404:
+            # París ya no expone la orden → fue despachada/cerrada
+            return {"_not_found": True}
         if response.status_code == 200:
             return response.json()
         print(f"⚠️ Paris sub-orden {sub_order_number}: {response.status_code}")
