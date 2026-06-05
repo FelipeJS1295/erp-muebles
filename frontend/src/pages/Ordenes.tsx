@@ -479,7 +479,18 @@ export default function Ordenes() {
           <span style={{ fontSize: '13px', color: 'var(--info)', fontWeight: 500 }}>
             {selected.size} {selected.size === 1 ? 'orden seleccionada' : 'órdenes seleccionadas'}
           </span>
-          <button style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)', cursor: 'pointer', fontWeight: 500 }}>
+          <button onClick={async () => {
+            if (!confirm(`¿Marcar ${selected.size} orden${selected.size > 1 ? 'es' : ''} como despachadas?`)) return
+            try {
+              const ordenesSeleccionadas = filtradas.filter(o => selected.has(o.orden_id))
+              await Promise.all(ordenesSeleccionadas.map(o => api.put(`/ordenes/${o.id}/estado`, { estado: 'Shipped' })))
+              setSelected(new Set())
+              await cargar()
+            } catch (e) {
+              console.error(e)
+              alert('Error al actualizar los estados')
+            }
+          }} style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)', cursor: 'pointer', fontWeight: 500 }}>
             Marcar despachadas
           </button>
           <button onClick={() => setMostrarBoletasMasivo(true)} style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: '0.5px solid var(--success)', background: 'var(--success-bg)', color: 'var(--success)', cursor: 'pointer', fontWeight: 500 }}>
