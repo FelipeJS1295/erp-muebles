@@ -622,7 +622,16 @@ export default function Ordenes() {
                             )
                           )}
                           {['Nueva', 'Atrasada'].includes(estadoERP) && (
-                            <button style={{
+                            <button onClick={async () => {
+                              if (!confirm(`¿Marcar orden ${o.orden_id} como despachada?`)) return
+                              try {
+                                await api.put(`/ordenes/${o.id}/estado`, { estado: 'Shipped' })
+                                await cargar()
+                              } catch (e) {
+                                console.error(e)
+                                alert('Error al actualizar el estado')
+                              }
+                            }} style={{
                               fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
                               border: 'none', background: 'var(--accent)',
                               color: 'var(--accent-fg)', cursor: 'pointer', whiteSpace: 'nowrap',

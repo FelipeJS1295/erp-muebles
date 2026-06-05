@@ -542,6 +542,26 @@ async def listar_ordenes(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error BD: {str(e)}")
 
+
+@app.put("/api/v1/ordenes/{orden_id}/estado", tags=["Base de Datos"])
+async def actualizar_estado_orden(orden_id: int, data: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(Orden).where(Orden.id == orden_id))
+        orden = result.scalar_one_or_none()
+        if not orden:
+            raise HTTPException(status_code=404, detail="Orden no encontrada")
+        nuevo_estado = data.get("estado")
+        if nuevo_estado:
+            orden.estado_marketplace = nuevo_estado
+            orden.fecha_actualizacion = datetime.utcnow()
+        await db.commit()
+        return {"mensaje": "Estado actualizado", "id": orden_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+    
 @app.delete("/api/v1/ordenes/{orden_id}", tags=["Base de Datos"])
 async def eliminar_orden(orden_id: int, db: AsyncSession = Depends(get_db)):
     try:
