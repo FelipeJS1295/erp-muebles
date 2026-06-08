@@ -475,6 +475,7 @@ export default function Ordenes() {
           <option value="Atrasada">Atrasada</option>
           <option value="Despachada">Despachada</option>
           <option value="Cancelada">Cancelada</option>
+          {esAdminMaster && <option value="Eliminadas">Eliminadas</option>}
         </select>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-3)' }}>Despacho desde</span>
