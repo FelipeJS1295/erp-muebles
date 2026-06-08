@@ -3,6 +3,7 @@ from sqlalchemy import select
 from fastapi import Depends
 from app.db.base import get_db
 from app.models.orden import Orden, MarketplaceEnum, EstadoOrdenEnum
+from app.models.alias_producto import AliasProducto
 from app.routers.productos_internos import router as productos_internos_router
 from app.routers.insumos import router as insumos_router
 from app.routers.sku_retail import router as sku_retail_router
@@ -548,6 +549,51 @@ async def listar_ordenes(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error BD: {str(e)}")
+
+@app.get("/api/v1/alias-productos", tags=["Base de Datos"])
+async def listar_alias(db: AsyncSession = Depends(get_db)):
+    """Lista todos los alias guardados."""
+    try:
+        result = await db.execute(select(AliasProducto).order_by(AliasProducto.fecha_creacion.desc()))
+        alias = result.scalars().all()
+        return {"alias": [{"id": a.id, "sku": a.sku, "nombre_original": a.nombre_original, "alias": a.alias} for a in alias]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/api/v1/alias-productos", tags=["Base de Datos"])
+async def guardar_alias(payload: dict, db: AsyncSession = Depends(get_db)):
+    """Guarda o actualiza un alias para un producto."""
+    try:
+        sku = payload.get("sku", "")
+        nombre_original = payload.get("nombre_original", "")
+        alias = payload.get("alias", "")
+
+        # Si ya existe para ese sku, actualiza
+        result = await db.execute(select(AliasProducto).where(AliasProducto.sku == sku))
+        existente = result.scalar_one_or_none()
+        if existente:
+            existente.alias = alias
+            existente.nombre_original = nombre_original
+        else:
+            db.add(AliasProducto(sku=sku, nombre_original=nombre_original, alias=alias))
+
+        await db.commit()
+        return {"mensaje": "Alias guardado"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.delete("/api/v1/alias-productos/{sku}", tags=["Base de Datos"])
+async def eliminar_alias(sku: str, db: AsyncSession = Depends(get_db)):
+    """Elimina el alias de un producto."""
+    try:
+        result = await db.execute(select(AliasProducto).where(AliasProducto.sku == sku))
+        existente = result.scalar_one_or_none()
+        if existente:
+            await db.delete(existente)
+            await db.commit()
+        return {"mensaje": "Alias eliminado"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 @app.put("/api/v1/ordenes/{orden_id}/estado", tags=["Base de Datos"])

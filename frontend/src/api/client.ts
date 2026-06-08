@@ -56,4 +56,8 @@ export const dbApi = {
   syncRipley: () => api.post('/ordenes/sync/ripley'),
   cambiarEstadoOrden: (id: number, estado_interno: string) =>
     api.put(`/ordenes/${id}/estado`, { estado_interno }),
+  getAlias: () => api.get('/alias-productos'),
+  guardarAlias: (sku: string, nombre_original: string, alias: string) =>
+    api.post('/alias-productos', { sku, nombre_original, alias }),
+  eliminarAlias: (sku: string) => api.delete(`/alias-productos/${sku}`),
 }
