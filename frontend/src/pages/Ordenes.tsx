@@ -192,10 +192,17 @@ export default function Ordenes() {
   const [menuEstado, setMenuEstado] = useState<string | null>(null)
   const [cambiandoEstado, setCambiandoEstado] = useState<string | null>(null)
 
+
+  const usuarioGuardado = localStorage.getItem('usuario')
+  const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
+  const soloLectura = usuario?.rol === 'view'
+  const esAdminMaster = usuario?.rol === 'admin_master'
+
+
   const cargar = async () => {
     try {
       setLoading(true)
-      const res = await dbApi.getOrdenes(undefined, 500)
+      const res = await dbApi.getOrdenes(undefined, 500, esAdminMaster)
       setOrdenes(res.data.ordenes || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
@@ -241,14 +248,9 @@ export default function Ordenes() {
     }
   }
 
-  const usuarioGuardado = localStorage.getItem('usuario')
-  const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
-  const soloLectura = usuario?.rol === 'view'
-  const esAdminMaster = usuario?.rol === 'admin_master'
-
   const filtradas = useMemo(() => {
-    let result = [...ordenes]
-    if (filtroMkt) result = result.filter(o => o.marketplace === filtroMkt)
+  let result = [...ordenes]
+      if (!esAdminMaster) result = result.filter((o: any) => !o.eliminada)
     if (filtroEstado === 'activas') {
       result = result.filter(o => ['Nueva', 'Atrasada'].includes(getEstadoUnificado(o)))
     } else if (filtroEstado && filtroEstado !== 'todas') {
@@ -624,6 +626,11 @@ export default function Ordenes() {
                         <span style={{ padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500, background: est.bg, color: est.color, whiteSpace: 'nowrap' }}>
                           {estadoERP}
                         </span>
+                        {(o as any).eliminada === 1 && (
+                          <span style={{ padding: '2px 7px', borderRadius: '8px', fontSize: '11px', fontWeight: 500, background: 'var(--danger-bg)', color: 'var(--danger)', marginLeft: '4px' }}>
+                            Eliminada
+                          </span>
+                        )}
                       </td>
                       <td style={TD}>
                         <div style={{ display: 'flex', gap: '5px' }}>

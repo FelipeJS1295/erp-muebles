@@ -480,6 +480,7 @@ async def sincronizar_ordenes_walmart(
 
 @app.get("/api/v1/ordenes", tags=["Base de Datos"])
 async def listar_ordenes(
+    request: Request,
     marketplace: str = None,
     estado: str = None,
     limit: int = 50,
@@ -490,7 +491,11 @@ async def listar_ordenes(
     try:
         from app.models.boleta import Boleta
 
-        query = select(Orden).where(Orden.eliminada == 0).order_by(Orden.fecha_creacion.desc())
+        incluir_eliminadas = str(request.query_params.get("incluir_eliminadas", "false")).lower() == "true"
+        if incluir_eliminadas:
+            query = select(Orden).order_by(Orden.fecha_creacion.desc())
+        else:
+            query = select(Orden).where(Orden.eliminada == 0).order_by(Orden.fecha_creacion.desc())
         if marketplace:
             query = query.where(Orden.marketplace == marketplace)
         if estado:
@@ -536,6 +541,7 @@ async def listar_ordenes(
                     ),
                     "fulfillment": (o.raw or {}).get("fulfillment") or (o.raw or {}).get("raw", {}).get("fulfillment"),
                     "estado_interno": o.estado_interno.value if o.estado_interno else None,
+                    "eliminada": o.eliminada,
                 }
                 for o in ordenes
             ],

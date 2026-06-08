@@ -48,8 +48,8 @@ export const marketplaceApi = {
 
 // Base de datos
 export const dbApi = {
-  getOrdenes: (marketplace?: string, limit = 50) =>
-    api.get(`/ordenes?limit=${limit}${marketplace ? `&marketplace=${marketplace}` : ''}`),
+  getOrdenes: (marketplace?: string, limit = 50, incluirEliminadas = false) =>
+    api.get(`/ordenes?limit=${limit}${marketplace ? `&marketplace=${marketplace}` : ''}${incluirEliminadas ? '&incluir_eliminadas=true' : ''}`),
   syncWalmart: () => api.post('/ordenes/sync/walmart'),
   syncParis: () => api.post('/ordenes/sync/paris'),
   syncFalabella: () => api.post('/ordenes/sync/falabella'),
