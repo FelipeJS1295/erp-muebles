@@ -183,6 +183,8 @@ export default function Ordenes() {
   const [mostrarBoletasMasivo, setMostrarBoletasMasivo] = useState(false)
   const [mostrarManifiesto, setMostrarManifiesto] = useState(false)
   const [mostrarHites, setMostrarHites] = useState(false);
+  const [menuEstado, setMenuEstado] = useState<string | null>(null)
+  const [cambiandoEstado, setCambiandoEstado] = useState<string | null>(null)
 
   const cargar = async () => {
     try {
@@ -218,6 +220,20 @@ export default function Ordenes() {
   }
 
   useEffect(() => { cargar() }, [])
+
+  const cambiarEstado = async (ordenId: number, ordenIdStr: string, nuevoEstado: string) => {
+    try {
+      setCambiandoEstado(ordenIdStr)
+      await dbApi.cambiarEstadoOrden(ordenId, nuevoEstado)
+      setMenuEstado(null)
+      await cargar()
+    } catch (e) {
+      console.error(e)
+      alert('Error al cambiar estado')
+    } finally {
+      setCambiandoEstado(null)
+    }
+  }
 
   const usuarioGuardado = localStorage.getItem('usuario')
   const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
@@ -631,22 +647,58 @@ export default function Ordenes() {
                               }}>Boleta</button>
                             )
                           )}
-                          {['Nueva', 'Atrasada'].includes(estadoERP) && (
-                            <button onClick={async () => {
-                              if (!confirm(`¿Marcar orden ${o.orden_id} como despachada?`)) return
-                              try {
-                                await api.put(`/ordenes/${o.id}/estado`, { estado: 'Shipped' })
-                                await cargar()
-                              } catch (e) {
-                                console.error(e)
-                                alert('Error al actualizar el estado')
-                              }
-                            }} style={{
-                              fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
-                              border: 'none', background: 'var(--accent)',
-                              color: 'var(--accent-fg)', cursor: 'pointer', whiteSpace: 'nowrap',
-                            }}>Despachar</button>
+                            {['Nueva', 'Atrasada'].includes(estadoERP) && (
+                            <button
+                              onClick={() => cambiarEstado(o.id, o.orden_id, 'despachada')}
+                              disabled={cambiandoEstado === o.orden_id}
+                              style={{
+                                fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
+                                border: 'none', background: 'var(--accent)',
+                                color: 'var(--accent-fg)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                opacity: cambiandoEstado === o.orden_id ? 0.6 : 1,
+                              }}>
+                              {cambiandoEstado === o.orden_id ? '...' : 'Despachar'}
+                            </button>
                           )}
+                          <div style={{ position: 'relative' }}>
+                            <button
+                              onClick={() => setMenuEstado(menuEstado === o.orden_id ? null : o.orden_id)}
+                              style={{
+                                fontSize: '12px', padding: '5px 8px', borderRadius: '5px',
+                                border: '0.5px solid var(--border)', background: 'var(--bg)',
+                                color: 'var(--text-2)', cursor: 'pointer',
+                              }}>⇅</button>
+                            {menuEstado === o.orden_id && (
+                              <div style={{
+                                position: 'absolute', top: '110%', right: 0, zIndex: 999,
+                                background: 'var(--bg-2)', border: '0.5px solid var(--border)',
+                                borderRadius: '8px', overflow: 'hidden', minWidth: '160px',
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                              }}>
+                                <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)' }}>
+                                  Cambiar estado
+                                </div>
+                                {[
+                                  { label: '🟦 Nueva', value: 'pendiente' },
+                                  { label: '✅ Despachada', value: 'despachada' },
+                                  { label: '📦 Entregada', value: 'entregada' },
+                                  { label: '✕ Cancelada', value: 'cancelada' },
+                                ].map(op => (
+                                  <button key={op.value}
+                                    onClick={() => cambiarEstado(o.id, o.orden_id, op.value)}
+                                    style={{
+                                      display: 'block', width: '100%', padding: '9px 12px',
+                                      background: 'transparent', border: 'none', textAlign: 'left',
+                                      fontSize: '13px', color: 'var(--text-1)', cursor: 'pointer',
+                                      borderBottom: '0.5px solid var(--border)',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                  >{op.label}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           {o.label_url && (
                             <button onClick={async () => {
                               window.open(o.label_url!, '_blank')

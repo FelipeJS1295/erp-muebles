@@ -54,4 +54,6 @@ export const dbApi = {
   syncParis: () => api.post('/ordenes/sync/paris'),
   syncFalabella: () => api.post('/ordenes/sync/falabella'),
   syncRipley: () => api.post('/ordenes/sync/ripley'),
+  cambiarEstadoOrden: (id: number, estado_interno: string) =>
+    api.put(`/ordenes/${id}/estado`, { estado_interno }),
 }
