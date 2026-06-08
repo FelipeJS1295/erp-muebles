@@ -251,10 +251,14 @@ export default function Ordenes() {
   const filtradas = useMemo(() => {
   let result = [...ordenes]
       if (!esAdminMaster) result = result.filter((o: any) => !o.eliminada)
-    if (filtroEstado === 'activas') {
-      result = result.filter(o => ['Nueva', 'Atrasada'].includes(getEstadoUnificado(o)))
-    } else if (filtroEstado && filtroEstado !== 'todas') {
-      result = result.filter(o => getEstadoUnificado(o) === filtroEstado)
+    if (filtroEstado === 'Eliminadas') {
+      result = result.filter((o: any) => o.eliminada === 1)
+    } else if (filtroEstado === 'activas') {
+      result = result.filter((o: any) => !o.eliminada && ['Nueva', 'Atrasada'].includes(getEstadoUnificado(o)))
+    } else if (filtroEstado === 'todas') {
+      result = result.filter((o: any) => !o.eliminada)
+    } else if (filtroEstado) {
+      result = result.filter((o: any) => !o.eliminada && getEstadoUnificado(o) === filtroEstado)
     }
     if (busqueda) {
       const q = busqueda.toLowerCase()
