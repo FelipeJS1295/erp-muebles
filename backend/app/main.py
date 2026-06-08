@@ -4,6 +4,7 @@ from fastapi import Depends
 from app.db.base import get_db
 from app.models.orden import Orden, MarketplaceEnum, EstadoOrdenEnum
 from app.models.alias_producto import AliasProducto
+from app.models.alias_esqueleteria import AliasEsqueleteria
 from app.routers.productos_internos import router as productos_internos_router
 from app.routers.insumos import router as insumos_router
 from app.routers.sku_retail import router as sku_retail_router
@@ -595,6 +596,44 @@ async def eliminar_alias(sku: str, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
+@app.get("/api/v1/alias-esqueleteria", tags=["Base de Datos"])
+async def listar_alias_esqueleteria(db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(AliasEsqueleteria).order_by(AliasEsqueleteria.fecha_creacion.desc()))
+        alias = result.scalars().all()
+        return {"alias": [{"id": a.id, "sku": a.sku, "nombre_original": a.nombre_original, "alias": a.alias} for a in alias]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/api/v1/alias-esqueleteria", tags=["Base de Datos"])
+async def guardar_alias_esqueleteria(payload: dict, db: AsyncSession = Depends(get_db)):
+    try:
+        sku = payload.get("sku", "")
+        nombre_original = payload.get("nombre_original", "")
+        alias = payload.get("alias", "")
+        result = await db.execute(select(AliasEsqueleteria).where(AliasEsqueleteria.sku == sku))
+        existente = result.scalar_one_or_none()
+        if existente:
+            existente.alias = alias
+            existente.nombre_original = nombre_original
+        else:
+            db.add(AliasEsqueleteria(sku=sku, nombre_original=nombre_original, alias=alias))
+        await db.commit()
+        return {"mensaje": "Alias guardado"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.delete("/api/v1/alias-esqueleteria/{sku}", tags=["Base de Datos"])
+async def eliminar_alias_esqueleteria(sku: str, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(AliasEsqueleteria).where(AliasEsqueleteria.sku == sku))
+        existente = result.scalar_one_or_none()
+        if existente:
+            await db.delete(existente)
+            await db.commit()
+        return {"mensaje": "Alias eliminado"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.put("/api/v1/ordenes/{orden_id}/estado", tags=["Base de Datos"])
 async def actualizar_estado_orden(orden_id: int, data: dict, db: AsyncSession = Depends(get_db)):

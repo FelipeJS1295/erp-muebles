@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../../api/client'
 import MaestraResumida from './MaestraResumida'
+import MaestraResumidaEsqueletos from './MaestraResumidaEsqueletos'
 
 interface Orden {
   id: number
@@ -63,6 +64,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
   const [mostrarResumida, setMostrarResumida] = useState(false)
+  const [mostrarResumidaEsqueletos, setMostrarResumidaEsqueletos] = useState(false)
   const [productosInternos, setProductosInternos] = useState<any[]>([])
   const [skusRetail, setSkusRetail] = useState<any[]>([])
 
@@ -490,11 +492,17 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
           {/* Botones derecha */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
             {mostrarResumida && <MaestraResumida ordenes={ordenes} onClose={() => setMostrarResumida(false)} />}
+            {mostrarResumidaEsqueletos && <MaestraResumidaEsqueletos ordenes={ordenes} onClose={() => setMostrarResumidaEsqueletos(false)} />}
             <button onClick={() => setMostrarResumida(true)} style={{
               padding: '7px 14px', borderRadius: '7px',
               border: '0.5px solid var(--border)', background: 'var(--bg)',
               color: 'var(--text-1)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
             }}>✦ Resumir</button>
+            <button onClick={() => setMostrarResumidaEsqueletos(true)} style={{
+              padding: '7px 14px', borderRadius: '7px',
+              border: '0.5px solid var(--info)', background: 'var(--info-bg)',
+              color: 'var(--info)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
+            }}>🦴 Resumir esqueletería</button>
             <button onClick={() => imprimirMaestra(false)} style={{
               padding: '7px 14px', borderRadius: '7px',
               border: '0.5px solid var(--border)', background: 'var(--bg)',
