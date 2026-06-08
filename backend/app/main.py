@@ -551,12 +551,16 @@ async def actualizar_estado_orden(orden_id: int, data: dict, db: AsyncSession = 
         orden = result.scalar_one_or_none()
         if not orden:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
-        nuevo_estado = data.get("estado")
-        if nuevo_estado:
-            orden.estado_marketplace = nuevo_estado
-            orden.fecha_actualizacion = datetime.utcnow()
+
+        nuevo_estado = data.get("estado_interno")
+        estados_validos = ["pendiente", "confirmada", "lista_despacho", "despachada", "entregada", "cancelada"]
+        if nuevo_estado not in estados_validos:
+            raise HTTPException(status_code=400, detail=f"Estado inválido. Válidos: {estados_validos}")
+
+        orden.estado_interno = nuevo_estado
+        orden.fecha_actualizacion = datetime.utcnow()
         await db.commit()
-        return {"mensaje": "Estado actualizado", "id": orden_id}
+        return {"mensaje": "Estado actualizado", "estado_interno": nuevo_estado}
     except HTTPException:
         raise
     except Exception as e:
@@ -1367,30 +1371,6 @@ async def trabajadores_sin_remuneracion(db: AsyncSession = Depends(get_db)):
                 for t in trabajadores
             ],
         }
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-    
-@app.put("/api/v1/ordenes/{orden_id}/estado", tags=["Base de Datos"])
-async def cambiar_estado_orden(orden_id: int, payload: dict, db: AsyncSession = Depends(get_db)):
-    """Cambia el estado_interno de una orden manualmente."""
-    try:
-        result = await db.execute(select(Orden).where(Orden.id == orden_id))
-        orden = result.scalar_one_or_none()
-        if not orden:
-            raise HTTPException(status_code=404, detail="Orden no encontrada")
-        
-        nuevo_estado = payload.get("estado_interno")
-        estados_validos = ["pendiente", "confirmada", "lista_despacho", "despachada", "entregada", "cancelada"]
-        if nuevo_estado not in estados_validos:
-            raise HTTPException(status_code=400, detail=f"Estado inválido. Válidos: {estados_validos}")
-        
-        orden.estado_interno = nuevo_estado
-        orden.fecha_actualizacion = datetime.utcnow()
-        await db.commit()
-        return {"mensaje": "Estado actualizado", "estado_interno": nuevo_estado}
-    except HTTPException:
-        raise
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
