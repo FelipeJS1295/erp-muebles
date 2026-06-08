@@ -535,6 +535,7 @@ async def listar_ordenes(
                         "boleta"
                     ),
                     "fulfillment": (o.raw or {}).get("fulfillment") or (o.raw or {}).get("raw", {}).get("fulfillment"),
+                    "estado_interno": o.estado_interno.value if o.estado_interno else None,
                 }
                 for o in ordenes
             ],

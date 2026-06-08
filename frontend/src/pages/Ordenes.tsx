@@ -41,6 +41,12 @@ interface Orden {
 // =============================================================================
 
 function getEstadoUnificado(orden: any): string {
+  // Si tiene estado_interno manual, tiene prioridad
+  if (orden.estado_interno === 'despachada') return 'Despachada'
+  if (orden.estado_interno === 'cancelada') return 'Cancelada'
+  if (orden.estado_interno === 'entregada') return 'Despachada'
+  if (orden.estado_interno === 'pendiente') return 'Nueva'
+
   // Órdenes de fulfillment se consideran siempre despachadas
   if (orden.fulfillment === 'by-paris') return 'Despachada'
 
