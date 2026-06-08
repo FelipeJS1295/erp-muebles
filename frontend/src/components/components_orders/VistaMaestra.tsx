@@ -22,6 +22,12 @@ const getHoy = () => {
 }
 
 function getEstadoUnificado(orden: any): string {
+  // Respetar estado_interno si fue forzado manualmente
+  if (orden.estado_interno === 'despachada') return 'Despachada'
+  if (orden.estado_interno === 'cancelada') return 'Cancelada'
+  if (orden.estado_interno === 'entregada') return 'Despachada'
+  if (orden.estado_interno === 'confirmada') return 'Nueva'
+
   if (orden.fulfillment === 'by-paris') return 'Despachada'
   const hoy = getHoy()
   if (orden.fecha_despacho) {
