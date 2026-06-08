@@ -259,7 +259,28 @@ export default function MaestraResumida({ ordenes, onClose }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filas.filter(fila => !soloResumen || !!alias[fila.sku]).map(fila => {
+            {soloResumen ? filasResumidas.map(fila => {
+                const total = Object.values(fila.fechas).reduce((a, b) => a + b, 0)
+                return (
+                  <tr key={fila.nombre}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid var(--border)' }} />
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid var(--border)' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-1)' }}>{fila.nombre}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-4)', marginTop: '2px' }}>{fila.skus.length} SKU{fila.skus.length > 1 ? 's' : ''} agrupados</div>
+                    </td>
+                    {fechas.map(f => (
+                      <td key={f} style={{ padding: '10px 12px', borderBottom: '0.5px solid var(--border)', textAlign: 'center', ...getCellStyle(f, fila.fechas[f] || 0) }}>
+                        {fila.fechas[f] || '—'}
+                      </td>
+                    ))}
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid var(--border)', textAlign: 'center', fontWeight: 700, color: 'var(--text-1)' }}>{total}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '0.5px solid var(--border)' }} />
+                  </tr>
+                )
+              }) : filas.map(fila => {
                 const isSelected = selected.has(fila.sku)
                 const tieneAlias = !!alias[fila.sku]
                 const nombreMostrar = alias[fila.sku] || fila.nombre
