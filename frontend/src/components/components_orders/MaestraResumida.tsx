@@ -47,6 +47,7 @@ export default function MaestraResumida({ ordenes, onClose }: Props) {
   const [nuevoAlias, setNuevoAlias] = useState('')
   const [sugerencia, setSugerencia] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [soloResumen, setSoloResumen] = useState(false)
   const hoy = getHoy()
 
   useEffect(() => {
@@ -227,6 +228,15 @@ export default function MaestraResumida({ ordenes, onClose }: Props) {
                 Asignar nombre ({selected.size})
               </button>
             )}
+            <button onClick={() => setSoloResumen(v => !v)} style={{
+              ...IS,
+              background: soloResumen ? 'var(--success-bg)' : 'var(--bg)',
+              color: soloResumen ? 'var(--success)' : 'var(--text-2)',
+              border: soloResumen ? '0.5px solid var(--success)' : '0.5px solid var(--border)',
+              fontWeight: soloResumen ? 600 : 400,
+            }}>
+              {soloResumen ? '✓ Ver resumen' : 'Ver resumen'}
+            </button>
             <button onClick={imprimir} style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px' }}>
               🖨️ Imprimir
             </button>
@@ -249,7 +259,7 @@ export default function MaestraResumida({ ordenes, onClose }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filas.map(fila => {
+              {filas.filter(fila => !soloResumen || !!alias[fila.sku]).map(fila => {
                 const isSelected = selected.has(fila.sku)
                 const tieneAlias = !!alias[fila.sku]
                 const nombreMostrar = alias[fila.sku] || fila.nombre
