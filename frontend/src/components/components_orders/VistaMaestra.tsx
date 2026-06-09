@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { api } from '../../api/client'
 import MaestraResumida from './MaestraResumida'
 import MaestraResumidaEsqueletos from './MaestraResumidaEsqueletos'
+import MaestraResumidaTransporte from './MaestraResumidaTransporte'
 
 interface Orden {
   id: number
@@ -65,6 +66,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
   const [fechaHasta, setFechaHasta] = useState('')
   const [mostrarResumida, setMostrarResumida] = useState(false)
   const [mostrarResumidaEsqueletos, setMostrarResumidaEsqueletos] = useState(false)
+  const [mostrarResumidaTransporte, setMostrarResumidaTransporte] = useState(false)
   const [productosInternos, setProductosInternos] = useState<any[]>([])
   const [skusRetail, setSkusRetail] = useState<any[]>([])
 
@@ -493,6 +495,7 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
             {mostrarResumida && <MaestraResumida ordenes={ordenes} onClose={() => setMostrarResumida(false)} />}
             {mostrarResumidaEsqueletos && <MaestraResumidaEsqueletos ordenes={ordenes} onClose={() => setMostrarResumidaEsqueletos(false)} />}
+            {mostrarResumidaTransporte && <MaestraResumidaTransporte ordenes={ordenes} onClose={() => setMostrarResumidaTransporte(false)} />}
             <button onClick={() => setMostrarResumida(true)} style={{
               padding: '7px 14px', borderRadius: '7px',
               border: '0.5px solid var(--border)', background: 'var(--bg)',
@@ -503,6 +506,11 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
               border: '0.5px solid var(--info)', background: 'var(--info-bg)',
               color: 'var(--info)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
             }}>🦴 Resumir esqueletería</button>
+            <button onClick={() => setMostrarResumidaTransporte(true)} style={{
+              padding: '7px 14px', borderRadius: '7px',
+              border: '0.5px solid var(--warning)', background: 'var(--warning-bg)',
+              color: 'var(--warning)', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
+            }}>🚚 Transporte</button>
             <button onClick={() => imprimirMaestra(false)} style={{
               padding: '7px 14px', borderRadius: '7px',
               border: '0.5px solid var(--border)', background: 'var(--bg)',

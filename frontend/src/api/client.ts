@@ -64,4 +64,8 @@ export const dbApi = {
   guardarAliasEsqueleteria: (sku: string, nombre_original: string, alias: string) =>
     api.post('/alias-esqueleteria', { sku, nombre_original, alias }),
   eliminarAliasEsqueleteria: (sku: string) => api.delete(`/alias-esqueleteria/${sku}`),
+  getAliasTransporte: () => api.get('/alias-transporte'),
+  guardarAliasTransporte: (sku: string, nombre_original: string, alias: string, hora_despacho: string, transporte: string, empresa: string) =>
+    api.post('/alias-transporte', { sku, nombre_original, alias, hora_despacho, transporte, empresa }),
+  eliminarAliasTransporte: (sku: string) => api.delete(`/alias-transporte/${sku}`),
 }
