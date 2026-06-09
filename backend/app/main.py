@@ -421,35 +421,50 @@ async def sincronizar_ordenes_walmart(
                 )
                 existente = result.scalar_one_or_none()
 
-                if existente:
-                    if existente.eliminada == 1:
-                        continue
-                    existente.orden_id_marketplace = o.get("orden_id")
-                    existente.estado_marketplace = o.get("estado")
-                    existente.fecha_despacho = o.get("fecha_despacho")
-                    existente.fecha_llegada = o.get("fecha_entrega_cliente")
-                    existente.total = o.get("total")
-                    existente.items = o.get("productos", [])
-                    existente.fecha_actualizacion = datetime.utcnow()
-                    actualizadas += 1
-                else:
-                    nueva = Orden(
-                        marketplace=MarketplaceEnum.walmart,
-                        orden_id_marketplace=o.get("orden_id"),
-                        sub_orden_id=o.get("purchase_order_id"),
-                        cliente_nombre=o.get("cliente"),
-                        estado_marketplace=o.get("estado"),
-                        fecha_despacho=o.get("fecha_despacho"),
-                        fecha_llegada=o.get("fecha_entrega_cliente"),
-                        total=o.get("total"),
-                        items=o.get("productos", []),
-                        fecha_marketplace=datetime.utcnow(),
-                        raw=o,
-                    )
-                    db.add(nueva)
-                    guardadas += 1
+                productos = o.get("productos", [])
+                if not productos:
+                    productos = [{}]
 
-                for prod in o.get("productos", []):
+                for idx, prod in enumerate(productos):
+                    # Clave única: purchase_order_id + índice del producto
+                    sub_id = f"{o.get('purchase_order_id')}_{idx}"
+
+                    result_prod = await db.execute(
+                        select(Orden).where(
+                            Orden.marketplace == MarketplaceEnum.walmart,
+                            Orden.sub_orden_id == sub_id,
+                        )
+                    )
+                    existente_prod = result_prod.scalar_one_or_none()
+
+                    if existente_prod:
+                        if existente_prod.eliminada == 1:
+                            continue
+                        existente_prod.orden_id_marketplace = o.get("orden_id")
+                        existente_prod.estado_marketplace = o.get("estado")
+                        existente_prod.fecha_despacho = o.get("fecha_despacho")
+                        existente_prod.fecha_llegada = o.get("fecha_entrega_cliente")
+                        existente_prod.total = o.get("total")
+                        existente_prod.items = [prod] if prod else []
+                        existente_prod.fecha_actualizacion = datetime.utcnow()
+                        actualizadas += 1
+                    else:
+                        nueva = Orden(
+                            marketplace=MarketplaceEnum.walmart,
+                            orden_id_marketplace=o.get("orden_id"),
+                            sub_orden_id=sub_id,
+                            cliente_nombre=o.get("cliente"),
+                            estado_marketplace=o.get("estado"),
+                            fecha_despacho=o.get("fecha_despacho"),
+                            fecha_llegada=o.get("fecha_entrega_cliente"),
+                            total=o.get("total"),
+                            items=[prod] if prod else [],
+                            fecha_marketplace=datetime.utcnow(),
+                            raw=o,
+                        )
+                        db.add(nueva)
+                        guardadas += 1
+
                     sku = prod.get("sku")
                     nombre = prod.get("nombre")
                     if sku:
