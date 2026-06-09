@@ -64,15 +64,17 @@ export default function MaestraResumida({ ordenes, onClose }: Props) {
     const skuMap: Record<string, { sku: string; nombre: string; fechas: Record<string, number> }> = {}
     for (const o of activas) {
       const items = o.items || []
-      const primer = Array.isArray(items) ? items[0] : null
-      if (!primer) continue
-      const sku = primer.sellerSku || primer.sku || primer.Sku || 'sin-sku'
-      const nombre = (o.marketplace === 'falabella'
-        ? `${primer.nombre || primer.name || primer.Name || '—'} (JAMAROFF)`
-        : primer.nombre || primer.name || primer.Name || '—')
+      const itemsArr = Array.isArray(items) && items.length > 0 ? items : [null]
       const fecha = o.fecha_despacho || 'Sin fecha'
-      if (!skuMap[sku]) skuMap[sku] = { sku, nombre, fechas: {} }
-      skuMap[sku].fechas[fecha] = (skuMap[sku].fechas[fecha] || 0) + 1
+      for (const item of itemsArr) {
+        if (!item) continue
+        const sku = item.sellerSku || item.Sku || item.sku || item.ShopSku || 'sin-sku'
+        const nombre = (o.marketplace === 'falabella'
+          ? `${item.nombre || item.name || item.Name || '—'} (JAMAROFF)`
+          : item.nombre || item.name || item.Name || '—')
+        if (!skuMap[sku]) skuMap[sku] = { sku, nombre, fechas: {} }
+        skuMap[sku].fechas[fecha] = (skuMap[sku].fechas[fecha] || 0) + 1
+      }
     }
     const fechasSet = new Set<string>()
     Object.values(skuMap).forEach(f => Object.keys(f.fechas).forEach(f2 => fechasSet.add(f2)))

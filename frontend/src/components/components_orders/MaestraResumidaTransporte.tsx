@@ -85,17 +85,17 @@ export default function MaestraResumidaTransporte({ ordenes, onClose }: Props) {
     const skuMap: Record<string, { sku: string; nombre: string; marketplace: string; fechas: Record<string, number> }> = {}
     for (const o of activas) {
       const items = o.items || []
-      const primer = Array.isArray(items) ? items[0] : null
-     if (!primer) continue
-      if (o.orden_id === '1157568943') console.log('DEBUG items:', JSON.stringify(primer))
-      const sku = primer.sellerSku || primer.Sku || primer.sku || primer.ShopSku || 'sin-sku'
-      if (sku === 'SECCTORFELGR') console.log('DEBUG sku encontrado en orden:', o.orden_id, 'ya existe en map:', !!skuMap[sku])
-      const nombre = (o.marketplace === 'falabella'
-        ? `${primer.Name || primer.nombre || primer.name || '—'} (JAMAROFF)`
-        : primer.nombre || primer.name || primer.Name || '—')
+      const itemsArr = Array.isArray(items) && items.length > 0 ? items : [null]
       const fecha = o.fecha_despacho || 'Sin fecha'
-      if (!skuMap[sku]) skuMap[sku] = { sku, nombre, marketplace: o.marketplace, fechas: {} }
-      skuMap[sku].fechas[fecha] = (skuMap[sku].fechas[fecha] || 0) + 1
+      for (const item of itemsArr) {
+        if (!item) continue
+        const sku = item.sellerSku || item.Sku || item.sku || item.ShopSku || 'sin-sku'
+        const nombre = (o.marketplace === 'falabella'
+          ? `${item.nombre || item.name || item.Name || '—'} (JAMAROFF)`
+          : item.nombre || item.name || item.Name || '—')
+        if (!skuMap[sku]) skuMap[sku] = { sku, nombre, fechas: {} }
+        skuMap[sku].fechas[fecha] = (skuMap[sku].fechas[fecha] || 0) + 1
+      }
     }
     const fechasSet = new Set<string>()
     Object.values(skuMap).forEach(f => Object.keys(f.fechas).forEach(f2 => fechasSet.add(f2)))

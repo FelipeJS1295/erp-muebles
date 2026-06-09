@@ -95,19 +95,22 @@ export default function VistaMaestra({ ordenes, onClose }: { ordenes: Orden[], o
   const tabla = useMemo(() => {
     const grupos: Record<string, Record<string, Record<string, number>>> = {}
     ordenesFiltradas.forEach(o => {
-    const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' :
-          o.marketplace === 'paris_chile' ? 'Paris' :
-          o.marketplace === 'ripley' ? 'Ripley' :
-          o.marketplace === 'hites' ? 'Hites' : 'Falabella'
+    ordenesFiltradas.forEach(o => {
+      const mkt = o.marketplace === 'walmart_chile' ? 'Walmart' :
+            o.marketplace === 'paris_chile' ? 'Paris' :
+            o.marketplace === 'ripley' ? 'Ripley' :
+            o.marketplace === 'hites' ? 'Hites' : 'Falabella'
       const items = o.items || []
-      const primer = Array.isArray(items) ? items[0] : null
-      const producto = primer?.nombre || primer?.name || primer?.Name || '—'
-      const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
-      const key = `${o.marketplace === 'falabella' ? `${producto} (JAMAROFF)` : producto}|||${sku}`
+      const itemsArr = Array.isArray(items) && items.length > 0 ? items : [null]
       const fecha = o.fecha_despacho || 'Sin fecha'
-      if (!grupos[mkt]) grupos[mkt] = {}
-      if (!grupos[mkt][key]) grupos[mkt][key] = {}
-      grupos[mkt][key][fecha] = (grupos[mkt][key][fecha] || 0) + 1
+      itemsArr.forEach(item => {
+        const producto = item?.nombre || item?.name || item?.Name || '—'
+        const sku = item?.sellerSku || item?.sku || item?.Sku || ''
+        const key = `${o.marketplace === 'falabella' ? `${producto} (JAMAROFF)` : producto}|||${sku}`
+        if (!grupos[mkt]) grupos[mkt] = {}
+        if (!grupos[mkt][key]) grupos[mkt][key] = {}
+        grupos[mkt][key][fecha] = (grupos[mkt][key][fecha] || 0) + 1
+      })
     })
     if (busqueda) {
       const q = busqueda.toLowerCase()
