@@ -89,6 +89,7 @@ export default function MaestraResumidaTransporte({ ordenes, onClose }: Props) {
      if (!primer) continue
       if (o.orden_id === '1157568943') console.log('DEBUG items:', JSON.stringify(primer))
       const sku = primer.sellerSku || primer.Sku || primer.sku || primer.ShopSku || 'sin-sku'
+      if (sku === 'SECCTORFELGR') console.log('DEBUG sku encontrado en orden:', o.orden_id, 'ya existe en map:', !!skuMap[sku])
       const nombre = (o.marketplace === 'falabella'
         ? `${primer.Name || primer.nombre || primer.name || '—'} (JAMAROFF)`
         : primer.nombre || primer.name || primer.Name || '—')
