@@ -199,7 +199,7 @@ export default function Ordenes() {
   const cargar = async () => {
     try {
       setLoading(true)
-      const res = await dbApi.getOrdenes(undefined, 500, esAdminMaster)
+      const res = await dbApi.getOrdenes(undefined, 1000, esAdminMaster)
       setOrdenes(res.data.ordenes || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
