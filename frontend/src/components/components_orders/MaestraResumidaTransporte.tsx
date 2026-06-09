@@ -83,9 +83,9 @@ export default function MaestraResumidaTransporte({ ordenes, onClose }: Props) {
       const items = o.items || []
       const primer = Array.isArray(items) ? items[0] : null
       if (!primer) continue
-      const sku = primer.sellerSku || primer.sku || primer.Sku || 'sin-sku'
+      const sku = primer.sellerSku || primer.Sku || primer.sku || primer.ShopSku || 'sin-sku'
       const nombre = (o.marketplace === 'falabella'
-        ? `${primer.nombre || primer.name || primer.Name || '—'} (JAMAROFF)`
+        ? `${primer.Name || primer.nombre || primer.name || '—'} (JAMAROFF)`
         : primer.nombre || primer.name || primer.Name || '—')
       const fecha = o.fecha_despacho || 'Sin fecha'
       if (!skuMap[sku]) skuMap[sku] = { sku, nombre, marketplace: o.marketplace, fechas: {} }
