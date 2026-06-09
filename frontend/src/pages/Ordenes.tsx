@@ -21,6 +21,7 @@ interface Orden {
   sub_orden_id: string | null
   cliente: string | null
   estado: string
+  estado_interno?: string
   carrier: string | null
   fecha_despacho: string | null
   fecha_llegada: string | null
@@ -41,13 +42,11 @@ interface Orden {
 // =============================================================================
 
 function getEstadoUnificado(orden: any): string {
-  // Solo respetar estado_interno si fue forzado manualmente
   if (orden.estado_interno === 'despachada') return 'Despachada'
   if (orden.estado_interno === 'cancelada') return 'Cancelada'
   if (orden.estado_interno === 'entregada') return 'Despachada'
   if (orden.estado_interno === 'confirmada') return 'Nueva'
 
-  // Órdenes de fulfillment se consideran siempre despachadas
   if (orden.fulfillment === 'by-paris') return 'Despachada'
 
   const now = new Date()
@@ -188,16 +187,14 @@ export default function Ordenes() {
   const [ordenParaBoleta, setOrdenParaBoleta] = useState<Orden | null>(null)
   const [mostrarBoletasMasivo, setMostrarBoletasMasivo] = useState(false)
   const [mostrarManifiesto, setMostrarManifiesto] = useState(false)
-  const [mostrarHites, setMostrarHites] = useState(false);
+  const [mostrarHites, setMostrarHites] = useState(false)
   const [menuEstado, setMenuEstado] = useState<string | null>(null)
   const [cambiandoEstado, setCambiandoEstado] = useState<string | null>(null)
-
 
   const usuarioGuardado = localStorage.getItem('usuario')
   const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null
   const soloLectura = usuario?.rol === 'view'
   const esAdminMaster = usuario?.rol === 'admin_master'
-
 
   const cargar = async () => {
     try {
@@ -211,22 +208,17 @@ export default function Ordenes() {
   const sincronizar = async () => {
     try {
       setSyncing(true)
-      
-      // Sync marketplaces propios
       await Promise.all([
         dbApi.syncWalmart(),
         dbApi.syncParis(),
         dbApi.syncFalabella(),
         dbApi.syncRipley()
       ])
-
-      // Sync APIs de clientes externos
       const resApis = await api.get('/api-clientes')
       const apis = resApis.data.apis || []
-      await Promise.all(apis.map((a: any) => 
+      await Promise.all(apis.map((a: any) =>
         api.post(`/api-clientes/${a.id}/sync`).catch(e => console.warn(`Error sync cliente ${a.id}:`, e))
       ))
-
       await cargar()
     } catch (e) { console.error(e) }
     finally { setSyncing(false) }
@@ -249,8 +241,8 @@ export default function Ordenes() {
   }
 
   const filtradas = useMemo(() => {
-  let result = [...ordenes]
-      if (!esAdminMaster) result = result.filter((o: any) => !o.eliminada)
+    let result = [...ordenes]
+    if (!esAdminMaster) result = result.filter((o: any) => !o.eliminada)
     if (filtroEstado === 'Eliminadas') {
       result = result.filter((o: any) => o.eliminada === 1)
     } else if (filtroEstado === 'activas') {
@@ -260,6 +252,7 @@ export default function Ordenes() {
     } else if (filtroEstado) {
       result = result.filter((o: any) => !o.eliminada && getEstadoUnificado(o) === filtroEstado)
     }
+    if (filtroMkt) result = result.filter(o => o.marketplace === filtroMkt)
     if (busqueda) {
       const q = busqueda.toLowerCase()
       result = result.filter(o =>
@@ -268,7 +261,9 @@ export default function Ordenes() {
         o.items?.some((i: any) =>
           i?.nombre?.toLowerCase().includes(q) ||
           i?.name?.toLowerCase().includes(q) ||
-          i?.sellerSku?.toLowerCase().includes(q)
+          i?.Name?.toLowerCase().includes(q) ||
+          i?.sellerSku?.toLowerCase().includes(q) ||
+          i?.Sku?.toLowerCase().includes(q)
         )
       )
     }
@@ -303,19 +298,18 @@ export default function Ordenes() {
   const someSelected = selected.size > 0 && selected.size < filtradas.length
 
   const eliminar = async (id: number) => {
-  if (!confirm('¿Eliminar esta orden? Esta acción no se puede deshacer.')) return
-  try {
-    await api.delete(`/ordenes/${id}`)
-    setOrdenes(prev => prev.filter(o => o.id !== id))
-  } catch (e) {
-    console.error(e)
-    alert('Error al eliminar la orden')
+    if (!confirm('¿Eliminar esta orden? Esta acción no se puede deshacer.')) return
+    try {
+      await api.delete(`/ordenes/${id}`)
+      setOrdenes(prev => prev.filter(o => o.id !== id))
+    } catch (e) {
+      console.error(e)
+      alert('Error al eliminar la orden')
+    }
   }
-}
 
   const exportarExcel = () => {
     const ordenesAExportar = filtradas.filter(o => selected.has(o.orden_id))
-
     const rows = ordenesAExportar.flatMap(o => {
       const items = o.items || []
       const estadoUnificado = getEstadoUnificado(o)
@@ -350,8 +344,6 @@ export default function Ordenes() {
         Boleta: idx === 0 ? (o.boleta_folio ? `Folio ${o.boleta_folio}` : '') : '',
       }))
     })
-
-    // Construir CSV
     const cols = ['Marketplace', 'N° Orden', 'Cliente', 'Producto', 'SKU', 'Cantidad', 'Precio Unit.', 'Total Orden', 'Fecha Despacho', 'Estado', 'Carrier', 'Boleta']
     const escape = (v: any) => {
       const s = String(v ?? '')
@@ -369,25 +361,25 @@ export default function Ordenes() {
   }
 
   return (
-  <div style={{ animation: 'fadeIn 0.2s ease' }}>
-    {ordenSeleccionada && <OrdenModal orden={ordenSeleccionada} onClose={() => setOrdenSeleccionada(null)} />}
-    {mostrarMaestra && <VistaMaestra ordenes={ordenes} onClose={() => setMostrarMaestra(false)} />}
-    {mostrarManifiesto && <ManifiestoDespacho ordenes={ordenes} onClose={() => setMostrarManifiesto(false)} />}
-    {mostrarHites && <ModalHites onClose={() => setMostrarHites(false)} onSave={sincronizar} />}
-    {ordenParaBoleta && (
-      <ModalEmitirBoleta
-        orden={ordenParaBoleta}
-        onClose={() => setOrdenParaBoleta(null)}
-        onEmitida={() => cargar()}
-      />
-    )}
-    {mostrarBoletasMasivo && (
-      <ModalBoletasMasivo
-        ordenes={filtradas.filter(o => selected.has(o.orden_id))}
-        onClose={() => setMostrarBoletasMasivo(false)}
-        onCompletado={() => cargar()}
-      />
-    )}
+    <div style={{ animation: 'fadeIn 0.2s ease' }}>
+      {ordenSeleccionada && <OrdenModal orden={ordenSeleccionada} onClose={() => setOrdenSeleccionada(null)} />}
+      {mostrarMaestra && <VistaMaestra ordenes={ordenes} onClose={() => setMostrarMaestra(false)} />}
+      {mostrarManifiesto && <ManifiestoDespacho ordenes={ordenes} onClose={() => setMostrarManifiesto(false)} />}
+      {mostrarHites && <ModalHites onClose={() => setMostrarHites(false)} onSave={sincronizar} />}
+      {ordenParaBoleta && (
+        <ModalEmitirBoleta
+          orden={ordenParaBoleta}
+          onClose={() => setOrdenParaBoleta(null)}
+          onEmitida={() => cargar()}
+        />
+      )}
+      {mostrarBoletasMasivo && (
+        <ModalBoletasMasivo
+          ordenes={filtradas.filter(o => selected.has(o.orden_id))}
+          onClose={() => setMostrarBoletasMasivo(false)}
+          onCompletado={() => cargar()}
+        />
+      )}
 
       {/* Topbar */}
       <div style={{
@@ -402,15 +394,15 @@ export default function Ordenes() {
           <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '2px' }}>Gestión de órdenes de todos los marketplaces</div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-        <button
-          onClick={exportarExcel}
-          disabled={selected.size === 0}
-          title={selected.size === 0 ? 'Selecciona órdenes para exportar' : `Exportar ${selected.size} orden${selected.size > 1 ? 'es' : ''}`}
-          style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px', opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
-        >
-          <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 1h9v2L6 7v3l-2-1V7L1 3V1z"/></svg>
-          {selected.size > 0 ? `Exportar (${selected.size})` : 'Exportar'}
-        </button>
+          <button
+            onClick={exportarExcel}
+            disabled={selected.size === 0}
+            title={selected.size === 0 ? 'Selecciona órdenes para exportar' : `Exportar ${selected.size} orden${selected.size > 1 ? 'es' : ''}`}
+            style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px', opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1 1h9v2L6 7v3l-2-1V7L1 3V1z"/></svg>
+            {selected.size > 0 ? `Exportar (${selected.size})` : 'Exportar'}
+          </button>
           <button onClick={sincronizar} disabled={syncing} style={{ ...IS, display: 'flex', alignItems: 'center', gap: '6px', opacity: syncing ? 0.6 : 1 }}>
             <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.3"
               style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}>
@@ -418,7 +410,7 @@ export default function Ordenes() {
             </svg>
             {syncing ? 'Sincronizando...' : 'Sincronizar'}
           </button>
-                    <button onClick={() => setMostrarManifiesto(true)} style={{
+          <button onClick={() => setMostrarManifiesto(true)} style={{
             ...IS, display: 'flex', alignItems: 'center', gap: '6px',
             background: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 500,
           }}>
@@ -512,7 +504,7 @@ export default function Ordenes() {
             if (!confirm(`¿Marcar ${selected.size} orden${selected.size > 1 ? 'es' : ''} como despachadas?`)) return
             try {
               const ordenesSeleccionadas = filtradas.filter(o => selected.has(o.orden_id))
-              await Promise.all(ordenesSeleccionadas.map(o => api.put(`/ordenes/${o.id}/estado`, { estado: 'Shipped' })))
+              await Promise.all(ordenesSeleccionadas.map(o => dbApi.cambiarEstadoOrden(o.id, 'despachada')))
               setSelected(new Set())
               await cargar()
             } catch (e) {
@@ -577,170 +569,193 @@ export default function Ordenes() {
                       </td>
                     ))}
                   </tr>
-                )) : filtradas.map((o, i) => {
+                )) : filtradas.flatMap((o, i) => {
                   const isSelected = selected.has(o.orden_id)
                   const items = o.items || []
-                  const primer = Array.isArray(items) ? items[0] : null
-                  const producto = primer?.nombre || primer?.name || primer?.Name || '—'
-                  const productoDisplay = o.marketplace === 'falabella' ? `${producto} (JAMAROFF)` : producto
-                  const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
+                  const itemsArr = Array.isArray(items) && items.length > 0 ? items : [null]
                   const estadoERP = getEstadoUnificado(o)
                   const est = estadoStyle[estadoERP] || { bg: 'var(--bg-3)', color: 'var(--text-3)' }
                   const isWalmart = o.marketplace === 'walmart_chile'
                   const urgencia = fechaUrgencia(o.fecha_despacho, o.estado)
                   const fbs = fechaBadgeStyle[urgencia]
 
-                  return (
-                    <tr key={i}
-                      style={{ background: isSelected ? 'var(--info-bg)' : 'transparent', transition: 'background 0.1s' }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-3)' }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
-                    >
-                      <td style={TD}><Checkbox checked={isSelected} onChange={() => toggleOne(o.orden_id)} /></td>
-                      <td style={TD}>
-                      <span style={{
-                        padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500,
-                        background: isWalmart ? 'var(--walmart-bg)' :
-                                    o.marketplace === 'paris_chile' ? 'var(--paris-bg)' :
-                                    o.marketplace === 'ripley' ? 'var(--ripley-bg)' :
-                                    o.marketplace === 'hites' ? 'var(--bg-3)' : 'var(--falabella-bg)',
-                        color: isWalmart ? 'var(--walmart)' :
-                              o.marketplace === 'paris_chile' ? 'var(--paris)' :
-                              o.marketplace === 'ripley' ? 'var(--ripley)' :
-                              o.marketplace === 'hites' ? 'var(--text-2)' : 'var(--falabella)',
-                      }}>
-                        {isWalmart ? 'Walmart' :
-                        o.marketplace === 'paris_chile' ? 'Paris' :
-                        o.marketplace === 'ripley' ? 'Ripley' :
-                        o.marketplace === 'hites' ? 'Hites' : 'Falabella'}
-                      </span>
-                      </td>
-                      <td style={TD}>
-                        <span style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '12px', fontFamily: 'monospace', background: fbs.bg, color: fbs.color, fontWeight: 500 }}>
-                          {o.fecha_despacho || '—'}
-                        </span>
-                      </td>
-                      <td style={TD}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)', fontWeight: 500 }}>{o.orden_id}</span>
-                      </td>
-                      <td style={{ ...TD, maxWidth: '220px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{productoDisplay}</div>
-                        {sku && <div style={{ fontSize: '11px', color: 'var(--text-4)', marginTop: '2px', fontFamily: 'monospace' }}>{sku}</div>}
-                      </td>
-                      <td style={TD}>
-                        <span style={{ padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500, background: est.bg, color: est.color, whiteSpace: 'nowrap' }}>
-                          {estadoERP}
-                        </span>
-                        {(o as any).eliminada === 1 && (
-                          <span style={{ padding: '2px 7px', borderRadius: '8px', fontSize: '11px', fontWeight: 500, background: 'var(--danger-bg)', color: 'var(--danger)', marginLeft: '4px' }}>
-                            Eliminada
-                          </span>
-                        )}
-                      </td>
-                      <td style={TD}>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button onClick={() => setOrdenSeleccionada(o)} style={{
-                            fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
-                            border: '0.5px solid var(--border)', background: 'var(--bg)',
-                            color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap',
-                          }}>Ver</button>
-                          {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && o.fulfillment !== 'by-paris' && (
-                            o.boleta_folio ? (
-                              <button onClick={() => window.open(`/api/v1/boletas/${o.id}/pdf-view`, '_blank')} style={{
-                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
-                                border: '0.5px solid var(--info)', background: 'var(--info-bg)',
-                                color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
-                              }}>📄 Folio {o.boleta_folio}</button>
-                            ) : o.tipo_documento === 'factura' ? (
-                              <button onClick={e => { e.stopPropagation(); setOrdenParaBoleta(o) }} style={{
-                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
-                                border: '0.5px solid var(--warning)', background: 'var(--warning-bg)',
-                                color: 'var(--warning)', cursor: 'pointer', whiteSpace: 'nowrap',
-                              }}>🧾 Facturar</button>
-                            ) : (
-                              <button onClick={() => setOrdenParaBoleta(o)} style={{
-                                fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
-                                border: '0.5px solid var(--success)', background: 'var(--success-bg)',
-                                color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap',
-                              }}>Boleta</button>
-                            )
+                  return itemsArr.map((item, itemIdx) => {
+                    const esFilaExtra = itemIdx > 0
+                    const primer = item
+                    const producto = primer?.nombre || primer?.name || primer?.Name || '—'
+                    const productoDisplay = o.marketplace === 'falabella' ? `${producto} (JAMAROFF)` : producto
+                    const sku = primer?.sellerSku || primer?.sku || primer?.Sku || ''
+
+                    return (
+                      <tr key={`${i}-${itemIdx}`}
+                        style={{
+                          background: isSelected ? 'var(--info-bg)' : esFilaExtra ? 'var(--bg)' : 'transparent',
+                          transition: 'background 0.1s',
+                          borderLeft: esFilaExtra ? '3px solid var(--border-2)' : 'none',
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-3)' }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = esFilaExtra ? 'var(--bg)' : 'transparent' }}
+                      >
+                        <td style={TD}>
+                          {!esFilaExtra && <Checkbox checked={isSelected} onChange={() => toggleOne(o.orden_id)} />}
+                        </td>
+                        <td style={TD}>
+                          {!esFilaExtra && (
+                            <span style={{
+                              padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500,
+                              background: isWalmart ? 'var(--walmart-bg)' :
+                                          o.marketplace === 'paris_chile' ? 'var(--paris-bg)' :
+                                          o.marketplace === 'ripley' ? 'var(--ripley-bg)' :
+                                          o.marketplace === 'hites' ? 'var(--bg-3)' : 'var(--falabella-bg)',
+                              color: isWalmart ? 'var(--walmart)' :
+                                    o.marketplace === 'paris_chile' ? 'var(--paris)' :
+                                    o.marketplace === 'ripley' ? 'var(--ripley)' :
+                                    o.marketplace === 'hites' ? 'var(--text-2)' : 'var(--falabella)',
+                            }}>
+                              {isWalmart ? 'Walmart' :
+                              o.marketplace === 'paris_chile' ? 'Paris' :
+                              o.marketplace === 'ripley' ? 'Ripley' :
+                              o.marketplace === 'hites' ? 'Hites' : 'Falabella'}
+                            </span>
                           )}
-                            {['Nueva', 'Atrasada'].includes(estadoERP) && (
-                            <button
-                              onClick={() => cambiarEstado(o.id, o.orden_id, 'despachada')}
-                              disabled={cambiandoEstado === o.orden_id}
-                              style={{
+                        </td>
+                        <td style={TD}>
+                          {!esFilaExtra && (
+                            <span style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '12px', fontFamily: 'monospace', background: fbs.bg, color: fbs.color, fontWeight: 500 }}>
+                              {o.fecha_despacho || '—'}
+                            </span>
+                          )}
+                        </td>
+                        <td style={TD}>
+                          {!esFilaExtra && (
+                            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--info)', fontWeight: 500 }}>{o.orden_id}</span>
+                          )}
+                        </td>
+                        <td style={{ ...TD, maxWidth: '220px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{productoDisplay}</div>
+                          {sku && <div style={{ fontSize: '11px', color: 'var(--text-4)', marginTop: '2px', fontFamily: 'monospace' }}>{sku}</div>}
+                        </td>
+                        <td style={TD}>
+                          {!esFilaExtra && (
+                            <>
+                              <span style={{ padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 500, background: est.bg, color: est.color, whiteSpace: 'nowrap' }}>
+                                {estadoERP}
+                              </span>
+                              {(o as any).eliminada === 1 && (
+                                <span style={{ padding: '2px 7px', borderRadius: '8px', fontSize: '11px', fontWeight: 500, background: 'var(--danger-bg)', color: 'var(--danger)', marginLeft: '4px' }}>
+                                  Eliminada
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </td>
+                        <td style={TD}>
+                          {!esFilaExtra && (
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <button onClick={() => setOrdenSeleccionada(o)} style={{
                                 fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
-                                border: 'none', background: 'var(--accent)',
-                                color: 'var(--accent-fg)', cursor: 'pointer', whiteSpace: 'nowrap',
-                                opacity: cambiandoEstado === o.orden_id ? 0.6 : 1,
-                              }}>
-                              {cambiandoEstado === o.orden_id ? '...' : 'Despachar'}
-                            </button>
-                          )}
-                          <div style={{ position: 'relative' }}>
-                            <button
-                              onClick={() => setMenuEstado(menuEstado === o.orden_id ? null : o.orden_id)}
-                              style={{
-                                fontSize: '12px', padding: '5px 8px', borderRadius: '5px',
                                 border: '0.5px solid var(--border)', background: 'var(--bg)',
-                                color: 'var(--text-2)', cursor: 'pointer',
-                              }}>⇅</button>
-                            {menuEstado === o.orden_id && (
-                              <div style={{
-                                position: 'absolute', top: '110%', right: 0, zIndex: 999,
-                                background: 'var(--bg-2)', border: '0.5px solid var(--border)',
-                                borderRadius: '8px', overflow: 'hidden', minWidth: '160px',
-                                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                              }}>
-                                <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)' }}>
-                                  Cambiar estado
-                                </div>
-                                {[
-                                  { label: '🟦 Nueva', value: 'confirmada' },
-                                  { label: '✅ Despachada', value: 'despachada' },
-                                  { label: '📦 Entregada', value: 'entregada' },
-                                  { label: '✕ Cancelada', value: 'cancelada' },
-                                ].map(op => (
-                                  <button key={op.value}
-                                    onClick={() => cambiarEstado(o.id, o.orden_id, op.value)}
-                                    style={{
-                                      display: 'block', width: '100%', padding: '9px 12px',
-                                      background: 'transparent', border: 'none', textAlign: 'left',
-                                      fontSize: '13px', color: 'var(--text-1)', cursor: 'pointer',
-                                      borderBottom: '0.5px solid var(--border)',
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                  >{op.label}</button>
-                                ))}
+                                color: 'var(--text-2)', cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}>Ver</button>
+                              {!soloLectura && ['Nueva', 'Atrasada', 'Despachada'].includes(estadoERP) && o.fulfillment !== 'by-paris' && (
+                                o.boleta_folio ? (
+                                  <button onClick={() => window.open(`/api/v1/boletas/${o.id}/pdf-view`, '_blank')} style={{
+                                    fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                    border: '0.5px solid var(--info)', background: 'var(--info-bg)',
+                                    color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                  }}>📄 Folio {o.boleta_folio}</button>
+                                ) : o.tipo_documento === 'factura' ? (
+                                  <button onClick={e => { e.stopPropagation(); setOrdenParaBoleta(o) }} style={{
+                                    fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                    border: '0.5px solid var(--warning)', background: 'var(--warning-bg)',
+                                    color: 'var(--warning)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                  }}>🧾 Facturar</button>
+                                ) : (
+                                  <button onClick={() => setOrdenParaBoleta(o)} style={{
+                                    fontSize: '11px', padding: '5px 10px', borderRadius: '5px',
+                                    border: '0.5px solid var(--success)', background: 'var(--success-bg)',
+                                    color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                  }}>Boleta</button>
+                                )
+                              )}
+                              {['Nueva', 'Atrasada'].includes(estadoERP) && (
+                                <button
+                                  onClick={() => cambiarEstado(o.id, o.orden_id, 'despachada')}
+                                  disabled={cambiandoEstado === o.orden_id}
+                                  style={{
+                                    fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
+                                    border: 'none', background: 'var(--accent)',
+                                    color: 'var(--accent-fg)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                    opacity: cambiandoEstado === o.orden_id ? 0.6 : 1,
+                                  }}>
+                                  {cambiandoEstado === o.orden_id ? '...' : 'Despachar'}
+                                </button>
+                              )}
+                              <div style={{ position: 'relative' }}>
+                                <button
+                                  onClick={() => setMenuEstado(menuEstado === o.orden_id ? null : o.orden_id)}
+                                  style={{
+                                    fontSize: '12px', padding: '5px 8px', borderRadius: '5px',
+                                    border: '0.5px solid var(--border)', background: 'var(--bg)',
+                                    color: 'var(--text-2)', cursor: 'pointer',
+                                  }}>⇅</button>
+                                {menuEstado === o.orden_id && (
+                                  <div style={{
+                                    position: 'absolute', top: '110%', right: 0, zIndex: 999,
+                                    background: 'var(--bg-2)', border: '0.5px solid var(--border)',
+                                    borderRadius: '8px', overflow: 'hidden', minWidth: '160px',
+                                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                                  }}>
+                                    <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-3)', borderBottom: '0.5px solid var(--border)' }}>
+                                      Cambiar estado
+                                    </div>
+                                    {[
+                                      { label: '🟦 Nueva', value: 'confirmada' },
+                                      { label: '✅ Despachada', value: 'despachada' },
+                                      { label: '📦 Entregada', value: 'entregada' },
+                                      { label: '✕ Cancelada', value: 'cancelada' },
+                                    ].map(op => (
+                                      <button key={op.value}
+                                        onClick={() => cambiarEstado(o.id, o.orden_id, op.value)}
+                                        style={{
+                                          display: 'block', width: '100%', padding: '9px 12px',
+                                          background: 'transparent', border: 'none', textAlign: 'left',
+                                          fontSize: '13px', color: 'var(--text-1)', cursor: 'pointer',
+                                          borderBottom: '0.5px solid var(--border)',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                      >{op.label}</button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          {o.label_url && (
-                            <button onClick={async () => {
-                              window.open(o.label_url!, '_blank')
-                              if (o.marketplace === 'paris_chile' && o.sub_orden_id) {
-                                try { await marketplaceApi.imprimirEtiquetaParis(o.sub_orden_id) }
-                                catch (e) { console.warn(e) }
-                              }
-                            }} style={{
-                              fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
-                              border: '0.5px solid var(--border)', background: 'var(--bg)',
-                              color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
-                            }}>Etiqueta</button>
+                              {o.label_url && (
+                                <button onClick={async () => {
+                                  window.open(o.label_url!, '_blank')
+                                  if (o.marketplace === 'paris_chile' && o.sub_orden_id) {
+                                    try { await marketplaceApi.imprimirEtiquetaParis(o.sub_orden_id) }
+                                    catch (e) { console.warn(e) }
+                                  }
+                                }} style={{
+                                  fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
+                                  border: '0.5px solid var(--border)', background: 'var(--bg)',
+                                  color: 'var(--info)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                }}>Etiqueta</button>
+                              )}
+                              {esAdminMaster && (
+                                <button onClick={() => eliminar(o.id)} style={{
+                                  fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
+                                  border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
+                                  color: 'var(--danger)', cursor: 'pointer', whiteSpace: 'nowrap',
+                                }}>Eliminar</button>
+                              )}
+                            </div>
                           )}
-                          {esAdminMaster && (
-                            <button onClick={() => eliminar(o.id)} style={{
-                              fontSize: '12px', padding: '5px 10px', borderRadius: '5px',
-                              border: '0.5px solid var(--danger)', background: 'var(--danger-bg)',
-                              color: 'var(--danger)', cursor: 'pointer', whiteSpace: 'nowrap',
-                            }}>Eliminar</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
+                        </td>
+                      </tr>
+                    )
+                  })
                 })}
               </tbody>
             </table>
