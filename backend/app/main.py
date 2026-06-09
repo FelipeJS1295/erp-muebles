@@ -495,6 +495,53 @@ async def sincronizar_ordenes_walmart(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error sync Walmart: {str(e)}")
 
+@app.post("/api/v1/admin/fix-walmart-multiitem", tags=["Base de Datos"])
+async def fix_walmart_multiitem(db: AsyncSession = Depends(get_db)):
+    """Divide órdenes Walmart con múltiples items en filas separadas."""
+    try:
+        result = await db.execute(
+            select(Orden).where(Orden.marketplace == MarketplaceEnum.walmart)
+        )
+        ordenes = result.scalars().all()
+        creadas = 0
+        actualizadas = 0
+
+        for o in ordenes:
+            items = o.items or []
+            if len(items) <= 1:
+                continue
+
+            # Guardar sub_orden_id original antes de modificar
+            sub_id_original = o.sub_orden_id
+
+            # Actualizar la orden existente con solo el primer item
+            o.items = [items[0]]
+            o.sub_orden_id = f"{sub_id_original}_0"
+            actualizadas += 1
+
+            # Crear nuevas filas para los demás items
+            for idx, item in enumerate(items[1:], start=1):
+                nueva = Orden(
+                    marketplace=MarketplaceEnum.walmart,
+                    orden_id_marketplace=o.orden_id_marketplace,
+                    sub_orden_id=f"{sub_id_original}_{idx}",
+                    cliente_nombre=o.cliente_nombre,
+                    estado_marketplace=o.estado_marketplace,
+                    fecha_despacho=o.fecha_despacho,
+                    fecha_llegada=o.fecha_llegada,
+                    total=o.total,
+                    items=[item],
+                    fecha_marketplace=o.fecha_marketplace,
+                    raw=o.raw,
+                )
+                db.add(nueva)
+                creadas += 1
+
+        await db.commit()
+        return {"mensaje": f"Actualizadas {actualizadas} órdenes, creadas {creadas} filas nuevas"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
 
 @app.get("/api/v1/ordenes", tags=["Base de Datos"])
 async def listar_ordenes(
