@@ -77,7 +77,11 @@ export default function MaestraResumidaTransporte({ ordenes, onClose }: Props) {
 
   // Filas por SKU con info de órdenes
   const { filas, fechas } = useMemo(() => {
-    const activas = ordenes.filter(o => ['Nueva','Atrasada'].includes(getEstadoUnificado(o)))
+    const activas = ordenes.filter(o => {
+      const est = getEstadoUnificado(o)
+      if (o.orden_id === '1157568943') console.log('DEBUG orden falta:', est, o.estado, o.estado_interno, o.fecha_despacho)
+      return ['Nueva','Atrasada'].includes(est)
+    })
     const skuMap: Record<string, { sku: string; nombre: string; marketplace: string; fechas: Record<string, number> }> = {}
     for (const o of activas) {
       const items = o.items || []
